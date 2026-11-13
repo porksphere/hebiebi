@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as Haptics from 'expo-haptics';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
@@ -25,6 +24,7 @@ import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
+import { haptics } from '@/lib/haptics';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
@@ -133,24 +133,24 @@ export default function ReviewScreen() {
     if (result.kind === 'retry') {
       if (result.message) setMessage(result.message);
       runShake();
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      haptics.retry();
       return;
     }
     setInput(displayedAnswer(input, question.type));
     setMessage(closeEnough(result));
     if (result.kind === 'correct') {
       if (finishes) {
-        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        haptics.itemDone();
         shine.current?.play();
       } else {
-        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+        haptics.correct();
       }
       if (question.type === 'reading' && session.autoplayAudio) {
         const audio = pronunciations(item.subject)[0];
         if (audio) playAudio(audio.url);
       }
     } else {
-      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      haptics.wrong();
       AccessibilityInfo.announceForAccessibility(
         `Incorrect. ${correctAnswers(item.subject, question.type).join(', ')}`,
       );
@@ -171,6 +171,7 @@ export default function ReviewScreen() {
     if (graded?.completedItem && item) {
       setLifting({ id: item.assignmentId, subject: item.subject });
     }
+    haptics.next();
     session.next();
     setInput('');
     setMessage(null);

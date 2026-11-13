@@ -1,6 +1,7 @@
-import * as Haptics from 'expo-haptics';
 import { useRef, useState, type ReactNode } from 'react';
 import { Animated, Easing, Pressable, StyleSheet, View } from 'react-native';
+
+import { haptics } from '@/lib/haptics';
 
 const HOLD_MS = 800;
 const RING_SIZE = 220;
@@ -32,7 +33,7 @@ export function HoldToUndo({
 
   function begin() {
     if (!enabled) return;
-    Haptics.selectionAsync();
+    haptics.holdStart();
     popped.current = false;
     pop.setValue(0);
     // Slow to start, so a brush past doesn't look like anything.
@@ -40,7 +41,7 @@ export function HoldToUndo({
     Animated.parallel([Animated.timing(progress, hold), Animated.timing(ring, hold)]).start(({ finished }) => {
       if (!finished) return;
       popped.current = true;
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
+      haptics.holdPop();
       onUndo();
       Animated.parallel([
         Animated.timing(pop, { toValue: 1, duration: 220, easing: Easing.out(Easing.quad), useNativeDriver: true }),
