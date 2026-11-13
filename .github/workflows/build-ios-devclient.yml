@@ -1,0 +1,52 @@
+name: Build iOS dev client
+
+# A Debug build with expo-dev-client: on launch it connects to your Metro server (`bun start`) and
+# runs the JS from there, with fast refresh. Rebuild only when native code changes (a new native
+# module, a config plugin, an SDK bump); JS changes never need it.
+#
+# Published to the `ios-devclient` Release as its own AltStore source:
+#   https://github.com/<owner>/hebiebi/releases/download/ios-devclient/apps.json
+#
+# Same bundle id as the regular app (see plugins/with-devclient-variant.js), so installing it
+# replaces the app and keeps its data, and it doesn't use up a second free-account app slot.
+#
+# Manual only. Its ccache flavor (device-Debug-devclient) is warm only if this was run from main
+# within the last 7 days; otherwise the first run compiles cold.
+
+on:
+  workflow_dispatch: {}
+
+concurrency:
+  group: ios-devclient-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-ios-reusable.yml
+    with:
+      configuration: Debug
+      dev_client: true
+
+  publish:
+    needs: build
+    runs-on: ubuntu-latest
+    concurrency:
+      group: ios-devclient-source
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/ipa
+
+      - name: Publish the ios-devclient source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          bash .github/scripts/publish-ios-source.sh ios-devclient
+          "$RUNNER_TEMP/ipa/hebiebi-unsigned.ipa" "${{ needs.build.outputs.version }}" "$GITHUB_SHA"

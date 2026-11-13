@@ -1,0 +1,31 @@
+name: Checks
+
+# Typecheck, lint and unit tests: cheap, on Linux, for every push and PR.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: checks-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: jdx/mise-action@v5
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-linux-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-linux-
+      - run: bun install --frozen-lockfile
+      - run: bun run typecheck
+      - run: bun run lint
+      - run: bun test

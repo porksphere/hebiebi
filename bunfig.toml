@@ -1,0 +1,4 @@
+# Hoisted (flat) node_modules rather than Bun's isolated store: React Native's native builds and
+# autolinking resolve packages by walking node_modules, and short paths keep CMake/clang happy.
+[install]
+linker = "hoisted"

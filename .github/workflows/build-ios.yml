@@ -1,0 +1,76 @@
+name: Build iOS (AltStore source)
+
+# Builds the app on every push to main and publishes it to the `ios-nightly` Release as an
+# AltStore/SideStore source:
+#   https://github.com/<owner>/hebiebi/releases/download/ios-nightly/apps.json
+#
+# Pull requests build too (proving they compile, with main's warm caches) but don't publish.
+# Public repos get macOS minutes free; on a private repo, switch main to a nightly schedule like
+# comical-app does, since macOS minutes bill at 10x.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'plugins/**'
+      - 'app.json'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/build-ios.yml'
+      - '.github/workflows/build-ios-reusable.yml'
+      - '.github/scripts/**'
+      - '!**/*.md'
+      - '!**/*.test.ts'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'plugins/**'
+      - 'app.json'
+      - 'package.json'
+      - 'bun.lock'
+      - '.github/workflows/build-ios.yml'
+      - '.github/workflows/build-ios-reusable.yml'
+      - '.github/scripts/**'
+      - '!**/*.md'
+      - '!**/*.test.ts'
+
+concurrency:
+  group: ios-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    uses: ./.github/workflows/build-ios-reusable.yml
+    with:
+      configuration: Release
+
+  # The macOS runner only builds; publishing runs on Linux.
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    # Never cancelled half way: that could leave the manifest describing an IPA that isn't beside it.
+    concurrency:
+      group: ios-nightly-source
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ${{ needs.build.outputs.artifact }}
+          path: ${{ runner.temp }}/ipa
+
+      - name: Publish the ios-nightly source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          bash .github/scripts/publish-ios-source.sh ios-nightly
+          "$RUNNER_TEMP/ipa/hebiebi-unsigned.ipa" "${{ needs.build.outputs.version }}" "$GITHUB_SHA"

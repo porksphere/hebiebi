@@ -1,0 +1,5 @@
+# Bun is the package manager and script runner; Node is still needed because Metro and Xcode's
+# "Bundle React Native code" phase shell out to `node`.
+[tools]
+bun = "1.4.4"
+node = "22"

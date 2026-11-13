@@ -1,0 +1,232 @@
+# "↳" sorts this below the runnable workflows in the Actions sidebar and reads as "called by".
+name: ↳ Build iOS IPA (called by build-ios.yml, build-ios-devclient.yml)
+
+# Produces an UNSIGNED .ipa as a run artifact. No Apple Developer account or certificates:
+# AltStore/SideStore re-sign it on the device with a free Apple ID.
+#
+# Ported from comical-app's build-ios-reusable.yml, keeping its caching scheme:
+#   - Bun's module cache and CocoaPods' download cache, keyed on bun.lock.
+#   - ccache for the native compile, which is where the time goes. Keyed per build flavor, since
+#     Release and Debug object code don't share.
+#   - Only `main` WRITES caches. Every other ref restores main's newest entry read-only, so PR
+#     builds start warm without per-branch entries evicting main's from the shared 10 GB budget.
+
+on:
+  workflow_call:
+    inputs:
+      configuration:
+        description: Xcode configuration. Release for the app; Debug for the dev client.
+        type: string
+        default: Release
+      dev_client:
+        # Sets HEBIEBI_DEVCLIENT=1 for prebuild, so plugins/with-devclient-variant.js names the app
+        # "Hebiebi (dev)" and lets it load JS over plain HTTP from Metro.
+        description: Build the development client (expo-dev-client shell that loads JS from Metro).
+        type: boolean
+        default: false
+      runner:
+        # The image picks the Xcode, and so the iOS SDK the app links. comical-app builds on the
+        # same label.
+        description: The runs-on label of the macOS image.
+        type: string
+        default: xcode-27
+    outputs:
+      version:
+        description: The version stamped into the IPA.
+        value: ${{ jobs.build.outputs.version }}
+      artifact:
+        description: Name of the uploaded IPA artifact.
+        value: hebiebi-ios-unsigned-ipa
+
+jobs:
+  build:
+    runs-on: ${{ inputs.runner }}
+    outputs:
+      version: ${{ steps.ver.outputs.full }}
+    env:
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      HEBIEBI_DEVCLIENT: ${{ inputs.dev_client && '1' || '' }}
+      # Release is implicit so the main flavor's key stays short: `device` vs `device-Debug-devclient`.
+      BUILD_FLAVOR: device${{ inputs.configuration != 'Release' && format('-{0}', inputs.configuration) || '' }}${{ inputs.dev_client && '-devclient' || '' }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The version counts commits back to the last `expo.version` change.
+          fetch-depth: 0
+
+      # Bun and Node at the versions pinned in mise.toml (Node: Metro and Xcode's bundle phase
+      # shell out to it; Expo SDK 58 needs 22).
+      - uses: jdx/mise-action@v5
+
+      # --- Cache restore (every ref) ---------------------------------------------------------
+
+      - name: Restore Bun modules
+        id: restore-bun
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-ios-${{ hashFiles('bun.lock') }}
+          restore-keys: bun-ios-
+
+      - name: Restore CocoaPods
+        id: restore-pods
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-ios-${{ hashFiles('bun.lock') }}
+          restore-keys: pods-ios-
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-ios-${{ env.BUILD_FLAVOR }}-${{ hashFiles('bun.lock') }}-${{ github.sha }}
+          restore-keys: |
+            ccache-ios-${{ env.BUILD_FLAVOR }}-${{ hashFiles('bun.lock') }}-
+            ccache-ios-${{ env.BUILD_FLAVOR }}-
+
+      # Before pod install, so React Native's Podfile sees ccache and wires CC=ccache-clang.sh
+      # (app.json turns it on through expo-build-properties' ccacheEnabled).
+      - name: Install ccache
+        run: |
+          set -euo pipefail
+          command -v ccache >/dev/null || brew install ccache
+          ccache -z
+
+      - name: Install dependencies
+        run: bun install --frozen-lockfile
+
+      - name: Generate native iOS project (CNG)
+        run: bunx expo prebuild --platform ios --no-install
+
+      - name: Install CocoaPods
+        run: pod install
+        working-directory: ios
+
+      - name: Compute version
+        id: ver
+        run: |
+          set -euo pipefail
+          FULL="$(bash .github/scripts/compute-build-version.sh)"
+          # CFBundleVersion: total commits, the one number that never resets, since iOS treats a
+          # build number going backwards as a downgrade.
+          BUILD_NUMBER="$(git rev-list --count HEAD)"
+          echo "Version ${FULL} (build ${BUILD_NUMBER})"
+          echo "full=${FULL}" >> "$GITHUB_OUTPUT"
+          echo "build_number=${BUILD_NUMBER}" >> "$GITHUB_OUTPUT"
+
+      # prebuild writes literal version strings into Info.plist, so MARKETING_VERSION passed to
+      # xcodebuild wouldn't take. AltStore rejects an IPA whose version disagrees with its source.
+      - name: Stamp version into Info.plist
+        working-directory: ios
+        run: |
+          set -euo pipefail
+          PLIST=$(find . -maxdepth 2 -name Info.plist -not -path '*/Pods/*' | head -1)
+          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.ver.outputs.full }}" "$PLIST"
+          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.ver.outputs.build_number }}" "$PLIST"
+
+      # React Native's ccache-clang.sh runs `exec $CCACHE_BINARY clang`, relying on a build setting
+      # Xcode 26+ no longer passes to compile tasks (RN #55381). With it empty the wrapper runs bare
+      # clang and ccache never fires. Hard-code the binary and cache dir into the wrapper. Last
+      # before the archive so nothing reinstalls node_modules afterwards. (From comical-app.)
+      - name: Route ccache (patch RN wrapper for Xcode 26+)
+        run: |
+          set -euo pipefail
+          CCACHE_BIN="$(command -v ccache)"
+          RN="$(node -e "console.log(require('path').dirname(require.resolve('react-native/package.json')))")"
+          count=0
+          for w in "$RN/scripts/xcode/ccache-clang.sh" "$RN/scripts/xcode/ccache-clang++.sh"; do
+            [ -f "$w" ] || continue
+            grep -q 'HEBIEBI_CCACHE_FIX' "$w" && continue
+            tmp="$(mktemp)"
+            awk -v bin="$CCACHE_BIN" -v dir="$CCACHE_DIR" '
+              /^exec / && !ins {
+                print "export CCACHE_DIR=\"" dir "\"  # HEBIEBI_CCACHE_FIX"
+                print "export CCACHE_MAXSIZE=3G"
+                sub(/\$CCACHE_BINARY/, bin)
+                ins=1
+              }
+              { print }
+            ' "$w" > "$tmp"
+            chmod +x "$tmp"; mv "$tmp" "$w"
+            echo "patched $w"; count=$((count + 1))
+          done
+          [ "$count" -gt 0 ] || { echo "::error::no React Native ccache wrapper found to patch"; exit 1; }
+
+      - name: Build unsigned archive
+        working-directory: ios
+        env:
+          CONFIGURATION: ${{ inputs.configuration }}
+        run: |
+          set -euo pipefail
+          WORKSPACE=$(ls -d *.xcworkspace | head -1)
+          SCHEME=$(basename "$WORKSPACE" .xcworkspace)
+          echo "workspace=$WORKSPACE scheme=$SCHEME configuration=$CONFIGURATION"
+          # dwarf: skip dSYM generation (nothing consumes them). No index store: CI never browses.
+          xcodebuild \
+            -workspace "$WORKSPACE" \
+            -scheme "$SCHEME" \
+            -configuration "$CONFIGURATION" \
+            -sdk iphoneos \
+            -archivePath "$RUNNER_TEMP/hebiebi.xcarchive" \
+            archive \
+            CODE_SIGNING_ALLOWED=NO \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGN_IDENTITY="" \
+            DEVELOPMENT_TEAM="" \
+            DEBUG_INFORMATION_FORMAT=dwarf \
+            COMPILER_INDEX_STORE_ENABLE=NO
+
+      # Hits climb once main has saved a warm cache; a cold run is nearly all misses.
+      - name: ccache stats
+        if: always()
+        run: ccache -s -v 2>/dev/null || ccache -s
+
+      # Ad-hoc signed rather than not signed at all: codesign then validates the bundle here, and
+      # AltStore/SideStore replace the signature with their own anyway.
+      - name: Package IPA
+        run: |
+          set -euo pipefail
+          APP=$(ls -d "$RUNNER_TEMP/hebiebi.xcarchive/Products/Applications/"*.app | head -1)
+          mkdir -p "$RUNNER_TEMP/Payload"
+          cp -R "$APP" "$RUNNER_TEMP/Payload/"
+          APP="$RUNNER_TEMP/Payload/$(basename "$APP")"
+          for code in "$APP"/Frameworks/*.framework "$APP"/Frameworks/*.dylib; do
+            if [ -e "$code" ]; then codesign --force --sign - "$code"; fi
+          done
+          codesign --force --sign - "$APP"
+          codesign --verify --deep --strict "$APP"
+          (cd "$RUNNER_TEMP" && zip -qry hebiebi-unsigned.ipa Payload)
+          ls -lh "$RUNNER_TEMP/hebiebi-unsigned.ipa"
+
+      - name: Upload IPA artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: hebiebi-ios-unsigned-ipa
+          path: ${{ runner.temp }}/hebiebi-unsigned.ipa
+          if-no-files-found: error
+
+      # --- Cache save (main only) ------------------------------------------------------------
+
+      - name: Save ccache
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: ${{ github.workspace }}/.ccache
+          key: ccache-ios-${{ env.BUILD_FLAVOR }}-${{ hashFiles('bun.lock') }}-${{ github.sha }}
+
+      # Keyed on bun.lock alone: save only on a miss, since an existing key can't be overwritten
+      # (cache/save fails with "Unable to reserve cache" otherwise).
+      - name: Save Bun modules
+        if: github.ref == 'refs/heads/main' && steps.restore-bun.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-ios-${{ hashFiles('bun.lock') }}
+
+      - name: Save CocoaPods
+        if: github.ref == 'refs/heads/main' && steps.restore-pods.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/Library/Caches/CocoaPods
+          key: pods-ios-${{ hashFiles('bun.lock') }}

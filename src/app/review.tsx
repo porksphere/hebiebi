@@ -1,0 +1,343 @@
+import { useQueryClient } from '@tanstack/react-query';
+import * as Haptics from 'expo-haptics';
+import { router, Stack } from 'expo-router';
+import { useEffect, useRef, useState } from 'react';
+import {
+  ActivityIndicator,
+  Alert,
+  Animated,
+  Keyboard,
+  KeyboardAvoidingView,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  TextInput,
+  type TextInputInstance,
+  View,
+} from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
+import { toKana } from 'wanakana';
+
+import { SessionSummary } from '@/components/review/session-summary';
+import { SubjectCharacters } from '@/components/review/subject-characters';
+import { SubjectInfo } from '@/components/review/subject-info';
+import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
+import { sessionStats } from '@/lib/review/session';
+import { useReviewSession } from '@/lib/review/use-review-session';
+import { stageName } from '@/lib/srs';
+import type { SubjectType } from '@/lib/wanikani/types';
+import { spacing, useTheme } from '@/theme';
+
+const TYPE_NAMES: Record<SubjectType, string> = {
+  radical: 'Radical',
+  kanji: 'Kanji',
+  vocabulary: 'Vocabulary',
+  kana_vocabulary: 'Vocabulary',
+};
+
+export default function ReviewScreen() {
+  const theme = useTheme();
+  const insets = useSafeAreaInsets();
+  const queryClient = useQueryClient();
+  const session = useReviewSession();
+  const { state, phase } = session;
+
+  const inputRef = useRef<TextInputInstance>(null);
+  const [input, setInput] = useState('');
+  const [message, setMessage] = useState<string | null>(null);
+  const [showInfo, setShowInfo] = useState(false);
+  const shake = useRef(new Animated.Value(0)).current;
+
+  // The dashboard's counts are stale the moment this screen closes.
+  useEffect(
+    () => () => {
+      stopAudio();
+      queryClient.invalidateQueries();
+    },
+    [queryClient],
+  );
+
+  const question = state?.current ?? null;
+  const item = question && state ? state.items[question.assignmentId] : null;
+  const graded = phase.kind === 'graded' ? phase : null;
+  const finished = !!state && !question;
+
+  function runShake() {
+    shake.setValue(0);
+    Animated.sequence(
+      [10, -10, 7, -7, 3, 0].map((toValue) => Animated.timing(shake, { toValue, duration: 45, useNativeDriver: true })),
+    ).start();
+  }
+
+  function onChangeText(text: string) {
+    if (graded) return; // Read-only while showing a result; the keyboard stays up.
+    setMessage(null);
+    // Romaji → kana as you type. A lone trailing "n" waits, since it may start "na", "ni", ….
+    setInput(question?.type === 'reading' ? toKana(text, { IMEMode: true }) : text);
+  }
+
+  function onSubmit() {
+    if (graded) return goNext();
+    if (!item || !question) return;
+    const result = session.submit(input);
+    if (!result) return;
+    if (result.kind === 'retry') {
+      if (result.message) setMessage(result.message);
+      runShake();
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
+      return;
+    }
+    if (question.type === 'reading') setInput(toKana(input.trim()));
+    if (result.kind === 'correct') {
+      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      setMessage(result.exact ? null : `Close enough — it’s “${result.matched}”.`);
+      if (question.type === 'reading' && session.autoplayAudio) {
+        const audio = pronunciations(item.subject)[0];
+        if (audio) playAudio(audio.url);
+      }
+    } else {
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setMessage(null);
+    }
+  }
+
+  function goNext() {
+    session.next();
+    setInput('');
+    setMessage(null);
+    setShowInfo(false);
+    stopAudio();
+    inputRef.current?.focus();
+  }
+
+  function undo() {
+    session.undo();
+    setMessage(null);
+    setShowInfo(false);
+    inputRef.current?.focus();
+  }
+
+  function toggleInfo() {
+    if (!showInfo) Keyboard.dismiss();
+    else inputRef.current?.focus();
+    setShowInfo(!showInfo);
+  }
+
+  function close() {
+    const started = state && Object.values(state.items).some(
+      (i) => !state.completed.includes(i.assignmentId) && (i.incorrectMeaning || i.incorrectReading || (i.meaningDone && !i.readingDone) || (!i.meaningDone && i.readingDone)),
+    );
+    if (!started) return router.back();
+    Alert.alert('End this session?', 'Finished items are already saved. Items you’ve only partly answered will come back next time.', [
+      { text: 'Keep Going', style: 'cancel' },
+      { text: 'End Session', style: 'destructive', onPress: () => router.back() },
+    ]);
+  }
+
+  // --- Non-question states ----------------------------------------------------------------------
+
+  const header = (title: string, withMenu = false) => (
+    <>
+      <Stack.Screen
+        options={{
+          headerShown: true,
+          title,
+          headerShadowVisible: false,
+          headerStyle: { backgroundColor: theme.background },
+          headerTintColor: theme.text,
+        }}
+      />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close" onPress={close} />
+      </Stack.Toolbar>
+      {withMenu && state ? (
+        <Stack.Toolbar placement="right">
+          <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Session options">
+            <Stack.Toolbar.MenuAction
+              icon="flag.checkered"
+              isOn={state.wrappingUp}
+              subtitle="Finish the items in play, then stop"
+              onPress={session.toggleWrapUp}>
+              Wrap Up
+            </Stack.Toolbar.MenuAction>
+            <Stack.Toolbar.MenuAction icon="forward" disabled={!!graded} onPress={session.skipQuestion}>
+              Skip Question
+            </Stack.Toolbar.MenuAction>
+          </Stack.Toolbar.Menu>
+        </Stack.Toolbar>
+      ) : null}
+    </>
+  );
+
+  if (session.loading || session.error || session.empty) {
+    return (
+      <View style={[styles.center, { backgroundColor: theme.background }]}>
+        {header('Reviews')}
+        {session.loading ? (
+          <>
+            <ActivityIndicator color={theme.textSecondary} />
+            <Text style={[styles.centerText, { color: theme.textSecondary }]}>Getting your reviews…</Text>
+          </>
+        ) : session.error ? (
+          <>
+            <Text style={[styles.centerText, { color: theme.text }]}>Couldn’t load your reviews.</Text>
+            <Pressable onPress={() => session.retryLoad()} style={[styles.pill, { borderColor: theme.border }]}>
+              <Text style={{ color: theme.text, fontSize: 16, fontWeight: '600' }}>Try Again</Text>
+            </Pressable>
+          </>
+        ) : (
+          <Text style={[styles.centerText, { color: theme.text }]}>No reviews right now. Nice.</Text>
+        )}
+      </View>
+    );
+  }
+
+  if (finished && state) {
+    return (
+      <>
+        {header('Session Complete')}
+        <SessionSummary
+          state={state}
+          endingStages={session.endingStages}
+          unsent={session.unsent}
+          onRetrySync={session.sync}
+          onDone={() => router.back()}
+        />
+      </>
+    );
+  }
+
+  if (!state || !item || !question) return null;
+
+  // --- Question -------------------------------------------------------------------------------
+
+  const stats = sessionStats(state);
+  const isReading = question.type === 'reading';
+  const typeName = TYPE_NAMES[item.subject.object];
+  const partName = isReading ? 'Reading' : item.subject.object === 'radical' ? 'Name' : 'Meaning';
+
+  const inputBg = graded ? (graded.correct ? theme.correct : theme.incorrect) : theme.surface;
+  const inputFg = graded ? '#FFFFFF' : theme.text;
+
+  return (
+    <KeyboardAvoidingView
+      style={[styles.root, { backgroundColor: theme.background }]}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+      keyboardVerticalOffset={0}>
+      {header(`${stats.completed} / ${stats.total}${state.wrappingUp ? ' · wrapping up' : ''}`, true)}
+
+      <View style={[styles.hero, showInfo && styles.heroCompact, { backgroundColor: theme.background }]}>
+        <Text style={[styles.meta, { color: theme.textSecondary }]}>
+          {typeName} · Level {item.subject.data.level}
+          {session.showSrs ? ` · ${stageName(item.srsStage)}` : ''}
+        </Text>
+        <SubjectCharacters subject={item.subject} color={theme.text} size={showInfo ? 64 : 112} />
+      </View>
+
+      <View
+        style={[
+          styles.prompt,
+          { backgroundColor: isReading ? theme.inverseBackground : theme.surfaceStrong },
+        ]}>
+        <Text style={[styles.promptText, { color: isReading ? theme.inverseText : theme.text }]}>
+          {typeName} <Text style={styles.promptStrong}>{partName}</Text>
+        </Text>
+      </View>
+
+      <View style={styles.answerArea}>
+        <Animated.View style={{ transform: [{ translateX: shake }] }}>
+          <View style={[styles.inputWrap, { backgroundColor: inputBg }]}>
+            <TextInput
+              ref={inputRef}
+              value={input}
+              onChangeText={onChangeText}
+              onSubmitEditing={onSubmit}
+              submitBehavior="submit"
+              autoFocus
+              autoCapitalize="none"
+              autoCorrect={false}
+              spellCheck={false}
+              autoComplete="off"
+              returnKeyType={graded ? 'next' : 'done'}
+              placeholder={isReading ? 'こたえ' : 'Your answer'}
+              placeholderTextColor={theme.textSecondary}
+              style={[styles.input, { color: inputFg }]}
+              textAlign="center"
+              accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
+            />
+          </View>
+        </Animated.View>
+
+        <View style={styles.feedback}>
+          {message ? <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text> : null}
+          {graded ? (
+            <View style={styles.actions}>
+              <ActionButton label="Undo" onPress={undo} />
+              <ActionButton label={showInfo ? 'Hide Info' : 'Item Info'} onPress={toggleInfo} />
+              <ActionButton label="Next" onPress={goNext} primary />
+            </View>
+          ) : null}
+        </View>
+      </View>
+
+      {showInfo && graded ? (
+        <ScrollView
+          style={styles.info}
+          contentContainerStyle={[styles.infoContent, { paddingBottom: insets.bottom + spacing.lg }]}>
+          <SubjectInfo
+            subject={item.subject}
+            synonyms={item.synonyms}
+            showMeaning={question.type === 'meaning' || item.meaningDone}
+            showReading={question.type === 'reading' || item.readingDone}
+          />
+        </ScrollView>
+      ) : null}
+    </KeyboardAvoidingView>
+  );
+}
+
+function ActionButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
+  const theme = useTheme();
+  return (
+    <Pressable
+      onPress={onPress}
+      style={({ pressed }) => [
+        styles.action,
+        primary
+          ? { backgroundColor: theme.inverseBackground, borderColor: theme.inverseBackground }
+          : { borderColor: theme.border },
+        { opacity: pressed ? 0.7 : 1 },
+      ]}>
+      <Text style={[styles.actionText, { color: primary ? theme.inverseText : theme.text }]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+const styles = StyleSheet.create({
+  root: { flex: 1 },
+  center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.lg },
+  centerText: { fontSize: 17, textAlign: 'center' },
+  pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
+
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, gap: spacing.sm },
+  heroCompact: { flex: 0, paddingVertical: spacing.md },
+  meta: { fontSize: 13, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
+
+  prompt: { paddingVertical: 10, alignItems: 'center' },
+  promptText: { fontSize: 16 },
+  promptStrong: { fontWeight: '700' },
+
+  answerArea: { padding: spacing.md, gap: spacing.sm },
+  inputWrap: { borderRadius: 16 },
+  input: { fontSize: 24, paddingVertical: 14, paddingHorizontal: spacing.md, minHeight: 60 },
+  feedback: { minHeight: 44, gap: spacing.sm },
+  message: { fontSize: 15, textAlign: 'center' },
+  actions: { flexDirection: 'row', gap: spacing.sm },
+  action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
+  actionText: { fontSize: 15, fontWeight: '600' },
+
+  info: { flex: 1 },
+  infoContent: { paddingHorizontal: spacing.md },
+});
