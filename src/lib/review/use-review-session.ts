@@ -148,6 +148,5 @@ export function useReviewSession() {
     submitError,
     sync,
     autoplayAudio: user?.preferences.reviews_autoplay_audio ?? false,
-    showSrs: user?.preferences.reviews_display_srs_indicator ?? true,
   };
 }

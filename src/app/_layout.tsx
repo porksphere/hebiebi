@@ -76,7 +76,9 @@ function RootNavigator() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen
             name="review"
-            options={{ presentation: 'fullScreenModal', gestureEnabled: false }}
+            // headerShown is set here, not from the screen: toggling a modal's header after it
+            // mounts makes react-native-screens remount it and lose the session's state.
+            options={{ presentation: 'fullScreenModal', gestureEnabled: false, headerShown: true, title: 'Reviews' }}
           />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>

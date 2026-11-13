@@ -7,8 +7,6 @@ import {
   Alert,
   Animated,
   Keyboard,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -26,7 +24,7 @@ import { SubjectInfo } from '@/components/review/subject-info';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
-import { stageName } from '@/lib/srs';
+import { useKeyboardInset } from '@/lib/use-keyboard-inset';
 import type { SubjectType } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
 
@@ -49,6 +47,7 @@ export default function ReviewScreen() {
   const [message, setMessage] = useState<string | null>(null);
   const [showInfo, setShowInfo] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
+  const keyboard = useKeyboardInset();
 
   // The dashboard's counts are stale the moment this screen closes.
   useEffect(
@@ -142,7 +141,6 @@ export default function ReviewScreen() {
     <>
       <Stack.Screen
         options={{
-          headerShown: true,
           title,
           headerShadowVisible: false,
           headerStyle: { backgroundColor: theme.background },
@@ -222,17 +220,21 @@ export default function ReviewScreen() {
   const inputFg = graded ? '#FFFFFF' : theme.text;
 
   return (
-    <KeyboardAvoidingView
-      style={[styles.root, { backgroundColor: theme.background }]}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-      keyboardVerticalOffset={0}>
+    <View
+      ref={keyboard.ref}
+      onLayout={keyboard.onLayout}
+      style={[
+        styles.root,
+        {
+          backgroundColor: theme.background,
+          // Above the keyboard while it's up; above the home indicator when it isn't (with the
+          // info panel open, its scroll view handles that itself).
+          paddingBottom: keyboard.inset > 0 ? keyboard.inset : showInfo ? 0 : insets.bottom,
+        },
+      ]}>
       {header(`${stats.completed} / ${stats.total}${state.wrappingUp ? ' · wrapping up' : ''}`, true)}
 
       <View style={[styles.hero, showInfo && styles.heroCompact, { backgroundColor: theme.background }]}>
-        <Text style={[styles.meta, { color: theme.textSecondary }]}>
-          {typeName} · Level {item.subject.data.level}
-          {session.showSrs ? ` · ${stageName(item.srsStage)}` : ''}
-        </Text>
         <SubjectCharacters subject={item.subject} color={theme.text} size={showInfo ? 64 : 112} />
       </View>
 
@@ -294,7 +296,7 @@ export default function ReviewScreen() {
           />
         </ScrollView>
       ) : null}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -321,9 +323,8 @@ const styles = StyleSheet.create({
   centerText: { fontSize: 17, textAlign: 'center' },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
 
-  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md, gap: spacing.sm },
+  hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
   heroCompact: { flex: 0, paddingVertical: spacing.md },
-  meta: { fontSize: 13, fontWeight: '600', letterSpacing: 0.4, textTransform: 'uppercase' },
 
   prompt: { paddingVertical: 10, alignItems: 'center' },
   promptText: { fontSize: 16 },
