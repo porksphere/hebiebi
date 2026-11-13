@@ -1,4 +1,4 @@
-import { focusManager, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -12,11 +12,18 @@ import { useTheme } from '@/theme';
 SplashScreen.preventAutoHideAsync();
 
 const queryClient = new QueryClient({
+  // In development, every failed request shows up in Metro's log, with the query it was for.
+  queryCache: new QueryCache({
+    onError: (error, query) => {
+      if (__DEV__) console.warn(`[query ${JSON.stringify(query.queryKey)}]`, error.message);
+    },
+  }),
   defaultOptions: {
     queries: {
       staleTime: 30_000,
       // A bad token won't get better by retrying.
-      retry: (count, error) => !(error instanceof WaniKaniError && error.status < 500) && count < 2,
+      retry: (count, error) =>
+        !(error instanceof WaniKaniError && error.status >= 400 && error.status < 500) && count < 2,
     },
   },
 });

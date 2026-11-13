@@ -19,6 +19,11 @@ const REVISION = '20170710';
 /** WaniKani allows 60 requests a minute; a few in flight at once keeps bursts well under that. */
 const MAX_CONCURRENT = 4;
 const MAX_RATE_LIMIT_RETRIES = 3;
+/**
+ * No answer by then and the request fails. Without it, a request that never answers keeps its
+ * concurrency slot forever, and once all slots are stuck every request waits behind them.
+ */
+const TIMEOUT_MS = 30_000;
 
 export class WaniKaniError extends Error {
   constructor(
@@ -81,8 +86,11 @@ export function createClient(token: string) {
     for (let attempt = 0; ; attempt++) {
       await acquire();
       let res: Response;
+      const abort = new AbortController();
+      const timer = setTimeout(() => abort.abort(), TIMEOUT_MS);
       try {
         res = await fetch(url, {
+          signal: abort.signal,
           method,
           headers: {
             Authorization: `Bearer ${token}`,
@@ -91,7 +99,11 @@ export function createClient(token: string) {
           },
           body: body ? JSON.stringify(body) : undefined,
         });
+      } catch (error) {
+        if (abort.signal.aborted) throw new WaniKaniError('WaniKani didn’t answer in time', 0);
+        throw error;
       } finally {
+        clearTimeout(timer);
         release();
       }
 

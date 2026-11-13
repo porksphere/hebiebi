@@ -75,6 +75,7 @@ export default function TodayScreen() {
           <Text style={[styles.bannerText, { color: theme.text }]}>
             Couldn’t load your data from WaniKani. Pull down to try again.
           </Text>
+          <Text style={[styles.bannerDetail, { color: theme.textSecondary }]}>{error.message}</Text>
         </View>
       ) : null}
 
@@ -131,4 +132,5 @@ const styles = StyleSheet.create({
   row: { flexDirection: 'row', gap: spacing.md },
   banner: { borderWidth: 1, borderRadius: 14, padding: spacing.md },
   bannerText: { fontSize: 15 },
+  bannerDetail: { fontSize: 13, marginTop: spacing.xs },
 });
