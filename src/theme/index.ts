@@ -1,8 +1,8 @@
 import { useColorScheme } from 'react-native';
 
 // Monochrome: white on black in dark mode, black on white in light mode. The only hues in the app
-// are the answer states (they carry information, so they stay) and, away from the review screen,
-// WaniKani's item-type colours (TYPE_COLORS).
+// are the answer states (they carry information, so they stay) and WaniKani's item-type colours
+// (TYPE_COLORS).
 const palette = {
   light: {
     background: '#FFFFFF',
@@ -40,9 +40,9 @@ export function useTheme(): Palette & { scheme: 'light' | 'dark' } {
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 } as const;
 
 /**
- * WaniKani's colours for item types, which its users read at a glance. Used sparingly and only
- * where you browse (search, level and item pages, mnemonics): as dots and tints, never fills, and
- * never on the review screen, where kanji pink would sit beside the wrong-answer red.
+ * WaniKani's colours for item types, which its users read at a glance. Used sparingly: dots and
+ * tints where you browse (search, level and item pages, mnemonics), and the review answer field
+ * before it's graded. Never as big fills elsewhere.
  */
 export const TYPE_COLORS = {
   radical: '#00AAFF',

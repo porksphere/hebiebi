@@ -2,7 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from 'react';
 
 import { useAuth } from '../auth';
-import type { WaniKaniClient } from '../wanikani/client';
+import { describeError, type WaniKaniClient } from '../wanikani/client';
+import { showToast } from '../toast';
 import { checkAnswer, hasReading, type CheckResult } from './answer-checker';
 import {
   advance,
@@ -113,6 +114,10 @@ function useSessionController() {
     }
     setUnsent(result.remaining);
     setSubmitError(result.error);
+    if (result.error) {
+      // Nothing's lost: they're saved on the phone and retried.
+      showToast('Reviews saved, not sent yet', `${describeError(result.error).title}. They’ll be sent automatically.`);
+    }
     return result;
   }, [client]);
 

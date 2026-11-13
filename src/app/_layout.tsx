@@ -1,4 +1,4 @@
-import { focusManager, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { focusManager, MutationCache, QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { DarkTheme, DefaultTheme, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { useEffect } from 'react';
@@ -6,17 +6,30 @@ import { AppState, Platform } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
 import { ReviewSessionProvider } from '@/lib/review/use-review-session';
-import { WaniKaniError } from '@/lib/wanikani/client';
+import { Toaster } from '@/components/toast';
+import { showToast } from '@/lib/toast';
+import { describeError, WaniKaniError } from '@/lib/wanikani/client';
 import { useTheme } from '@/theme';
 
 SplashScreen.preventAutoHideAsync();
 
+/**
+ * Any request that fails (after its retries) says so in a toast; a bad token instead signs you out
+ * (RootNavigator). In development it's logged to Metro too, with the query it was for.
+ */
+function reportError(error: Error, what: string) {
+  if (__DEV__) console.warn(`[${what}]`, error.message);
+  if (error instanceof WaniKaniError && error.isUnauthorized) return;
+  const { title, detail } = describeError(error);
+  showToast(title, detail);
+}
+
 const queryClient = new QueryClient({
-  // In development, every failed request shows up in Metro's log, with the query it was for.
   queryCache: new QueryCache({
-    onError: (error, query) => {
-      if (__DEV__) console.warn(`[query ${JSON.stringify(query.queryKey)}]`, error.message);
-    },
+    onError: (error, query) => reportError(error, `query ${JSON.stringify(query.queryKey)}`),
+  }),
+  mutationCache: new MutationCache({
+    onError: (error) => reportError(error, 'mutation'),
   }),
   defaultOptions: {
     queries: {
@@ -39,6 +52,7 @@ export default function RootLayout() {
       <AuthProvider>
         <RootNavigator />
       </AuthProvider>
+      <Toaster />
     </QueryClientProvider>
   );
 }

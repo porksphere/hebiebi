@@ -29,7 +29,7 @@ import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
-import { spacing, useTheme } from '@/theme';
+import { spacing, TYPE_COLORS, useTheme } from '@/theme';
 
 const TYPE_NAMES: Record<SubjectType, string> = {
   radical: 'Radical',
@@ -296,23 +296,20 @@ export default function ReviewScreen() {
 
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
-  // WaniKani's cue for what to type, kept in black and white: meanings get the light field,
-  // readings the inverted one (black in light mode, white in dark), so "English or kana?" is
-  // answered at a glance. Graded, it's green or red either way.
-  const inverted = isReading && !graded;
+  // Before Enter, the field is in the item type's WaniKani colour, with WaniKani's light/dark cue
+  // for what to type: a light tint for a meaning (English), the solid colour for a reading (kana),
+  // so both "what is it?" and "English or kana?" read at a glance. Graded: green or red.
+  const typeColor = TYPE_COLORS[item.subject.object];
+  const solid = isReading && !graded;
   const inputBg = graded
     ? graded.correct
       ? theme.correct
       : theme.incorrect
-    : inverted
-      ? theme.inverseBackground
-      : theme.surface;
-  const inputFg = graded ? '#FFFFFF' : inverted ? theme.inverseText : theme.text;
-  const placeholderFg = inverted
-    ? theme.scheme === 'dark'
-      ? 'rgba(0,0,0,0.45)'
-      : 'rgba(255,255,255,0.5)'
-    : theme.textSecondary;
+    : solid
+      ? typeColor
+      : `${typeColor}${theme.scheme === 'dark' ? '44' : '29'}`;
+  const inputFg = graded || solid ? '#FFFFFF' : theme.text;
+  const placeholderFg = solid ? 'rgba(255,255,255,0.65)' : theme.textSecondary;
 
   return (
     // The system keyboard avoidance. It measures itself against its parent, which starts below the

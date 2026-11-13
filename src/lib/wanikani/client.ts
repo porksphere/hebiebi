@@ -25,6 +25,21 @@ const MAX_RATE_LIMIT_RETRIES = 3;
  */
 const TIMEOUT_MS = 30_000;
 
+/** An error as something to tell the user: a short title, and a detail line if it helps. */
+export function describeError(error: unknown): { title: string; detail?: string } {
+  if (error instanceof WaniKaniError) {
+    if (error.status === 0) return { title: 'WaniKani didn’t answer in time', detail: 'Check your connection and try again.' };
+    if (error.status === 429) return { title: 'Too many requests to WaniKani', detail: 'Wait a minute and try again.' };
+    if (error.status >= 500) return { title: 'WaniKani is having trouble', detail: `It returned an error (${error.status}). Try again soon.` };
+    return { title: 'WaniKani refused a request', detail: error.message };
+  }
+  const message = error instanceof Error ? error.message : String(error);
+  if (/network request failed|internet connection|offline/i.test(message)) {
+    return { title: 'Can’t reach WaniKani', detail: 'Check your connection.' };
+  }
+  return { title: 'Something went wrong', detail: message };
+}
+
 export class WaniKaniError extends Error {
   constructor(
     message: string,
