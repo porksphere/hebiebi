@@ -29,7 +29,7 @@ import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
-import { spacing, TYPE_COLORS, useTheme } from '@/theme';
+import { spacing, typeTint, useTheme } from '@/theme';
 
 const TYPE_NAMES: Record<SubjectType, string> = {
   radical: 'Radical',
@@ -296,20 +296,17 @@ export default function ReviewScreen() {
 
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
-  // Before Enter, the field is in the item type's WaniKani colour, with WaniKani's light/dark cue
-  // for what to type: a light tint for a meaning (English), the solid colour for a reading (kana),
+  // Before Enter, the field is a soft tint of the item type's WaniKani colour, with WaniKani's
+  // light/dark cue for what to type: faint for a meaning (English), stronger for a reading (kana),
   // so both "what is it?" and "English or kana?" read at a glance. Graded: green or red.
-  const typeColor = TYPE_COLORS[item.subject.object];
-  const solid = isReading && !graded;
+  const dark = theme.scheme === 'dark';
   const inputBg = graded
     ? graded.correct
       ? theme.correct
       : theme.incorrect
-    : solid
-      ? typeColor
-      : `${typeColor}${theme.scheme === 'dark' ? '44' : '29'}`;
-  const inputFg = graded || solid ? '#FFFFFF' : theme.text;
-  const placeholderFg = solid ? 'rgba(255,255,255,0.65)' : theme.textSecondary;
+    : typeTint(item.subject.object, isReading ? (dark ? 0.42 : 0.36) : dark ? 0.2 : 0.13);
+  const inputFg = graded ? '#FFFFFF' : theme.text;
+  const placeholderFg = theme.textSecondary;
 
   return (
     // The system keyboard avoidance. It measures itself against its parent, which starts below the

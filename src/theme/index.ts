@@ -44,6 +44,17 @@ export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 } as const;
  * tints where you browse (search, level and item pages, mnemonics), and the review answer field
  * before it's graded. Never as big fills elsewhere.
  */
+/**
+ * A type colour as a see-through tint over the page, which softens it to a pastel (on white) or a
+ * deep muted shade (on black) while keeping its hue. `strength` is 0–1.
+ */
+export function typeTint(type: keyof typeof TYPE_COLORS, strength: number) {
+  const alpha = Math.round(Math.min(1, Math.max(0, strength)) * 255)
+    .toString(16)
+    .padStart(2, '0');
+  return `${TYPE_COLORS[type]}${alpha}`;
+}
+
 export const TYPE_COLORS = {
   radical: '#00AAFF',
   kanji: '#FF00AA',

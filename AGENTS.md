@@ -57,7 +57,7 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   universal components for forms, which are SwiftUI on iOS and Compose on Android. The review
   screen is custom RN. The theme is monochrome (`src/theme`). The only hues are the
   correct/incorrect answer states and WaniKani's item-type colours (`TYPE_COLORS`): small dots and
-  tints where you browse, and the review answer field before grading (a tint for a meaning, the
-  solid colour for a reading, WaniKani's light/dark cue).
+  tints where you browse, and the review answer field before grading (a faint tint for a meaning,
+  a stronger one for a reading, WaniKani's light/dark cue). Tints, via `typeTint`, never solid.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.
