@@ -1,5 +1,5 @@
-import { useQuery } from '@tanstack/react-query';
-import { useCallback, useRef, useState } from 'react';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { useClient } from '../auth';
 import { useUser } from '../wanikani/queries';
@@ -24,6 +24,7 @@ export type Phase =
 /** Loads everything a session needs in one go: assignments, their subjects, user synonyms. */
 function useSessionData() {
   const client = useClient();
+  const queryClient = useQueryClient();
   return useQuery({
     queryKey: ['review-session'],
     staleTime: Infinity,
@@ -38,6 +39,8 @@ function useSessionData() {
         // Synonyms are a nicety; a failure here shouldn't block reviewing.
         client.getStudyMaterials(ids).catch(() => []),
       ]);
+      // Seed the subject cache so opening an item's page mid-review is instant.
+      for (const subject of subjects) queryClient.setQueryData(['subject', subject.id], subject);
       const subjectById = new Map(subjects.map((s) => [s.id, s]));
       const synonyms = new Map(materials.map((m) => [m.data.subject_id, m.data.meaning_synonyms]));
       return assignments.flatMap((a) => {
@@ -123,13 +126,21 @@ export function useReviewSession() {
     setPhase({ kind: 'answering' });
   }, [phase]);
 
+  // These two are wired to native header menu items, which can hold on to the callback from an
+  // earlier render. So they read the CURRENT state (functional update, a ref for the phase) rather
+  // than closing over it: a stale closure here would restore an old session.
+  const phaseRef = useRef(phase);
+  useEffect(() => {
+    phaseRef.current = phase;
+  }, [phase]);
+
   const skipQuestion = useCallback(() => {
-    if (state && phase.kind === 'answering') setState(skip(state));
-  }, [state, phase]);
+    if (phaseRef.current.kind === 'answering') setState((s) => (s ? skip(s) : s));
+  }, []);
 
   const toggleWrapUp = useCallback(() => {
-    if (state) setState(setWrappingUp(state, !state.wrappingUp));
-  }, [state]);
+    setState((s) => (s ? setWrappingUp(s, !s.wrappingUp) : s));
+  }, []);
 
   return {
     loading: data.isPending,

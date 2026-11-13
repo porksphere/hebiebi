@@ -80,6 +80,7 @@ function RootNavigator() {
             // mounts makes react-native-screens remount it and lose the session's state.
             options={{ presentation: 'fullScreenModal', gestureEnabled: false, headerShown: true, title: 'Reviews' }}
           />
+          <Stack.Screen name="subject" options={{ presentation: 'modal' }} />
         </Stack.Protected>
         <Stack.Protected guard={!signedIn}>
           <Stack.Screen name="sign-in" />

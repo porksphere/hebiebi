@@ -196,6 +196,24 @@ export interface StudyMaterial {
   hidden: boolean;
 }
 
+// --- Review statistics ------------------------------------------------------------------------
+
+export interface ReviewStatistic {
+  created_at: ISODate;
+  subject_id: number;
+  subject_type: SubjectType;
+  meaning_correct: number;
+  meaning_incorrect: number;
+  meaning_max_streak: number;
+  meaning_current_streak: number;
+  reading_correct: number;
+  reading_incorrect: number;
+  reading_max_streak: number;
+  reading_current_streak: number;
+  percentage_correct: number;
+  hidden: boolean;
+}
+
 // --- Reviews ----------------------------------------------------------------------------------
 
 export interface CreateReviewBody {

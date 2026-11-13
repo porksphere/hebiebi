@@ -5,6 +5,7 @@ import type {
   CreateReviewResponse,
   Report,
   Resource,
+  ReviewStatistic,
   StudyMaterial,
   Subject,
   Summary,
@@ -167,6 +168,9 @@ export function createClient(token: string) {
       getAll<unknown>('/subjects', { levels: level, types, hidden: false }) as unknown as Promise<
         Subject[]
       >,
+
+    getReviewStatistics: (subjectIds: number[]) =>
+      getByIds<ReviewStatistic>('/review_statistics', subjectIds, 'subject_ids'),
 
     getStudyMaterials: (subjectIds: number[]) =>
       getByIds<StudyMaterial>('/study_materials', subjectIds, 'subject_ids'),

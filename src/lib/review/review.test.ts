@@ -176,6 +176,19 @@ describe('session', () => {
     expect(sessionStats(state).remaining).toBe(9);
   });
 
+  test('wrap-up finishes only the items in play (at most 10), then ends', () => {
+    const items = Array.from({ length: 40 }, (_, i) => makeItem(i + 1, radical(i + 1), 1));
+    let state = setWrappingUp(createSession(items), true);
+    expect(sessionStats(state).remaining).toBe(10);
+    let answered = 0;
+    while (state.current) {
+      state = advance(answerCurrent(state, true).state);
+      answered++;
+    }
+    expect(answered).toBe(10);
+    expect(state.backlog).toHaveLength(30);
+  });
+
   test('lower levels first', () => {
     const items = [makeItem(1, kanji(1, 5), 1), makeItem(2, kanji(2, 1), 1), makeItem(3, kanji(3, 3), 1)];
     const state = createSession(items, { order: 'lower_levels_first' });

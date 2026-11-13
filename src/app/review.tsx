@@ -1,14 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
-import { router, Stack } from 'expo-router';
-import { useEffect, useRef, useState } from 'react';
+import { router, Stack, useFocusEffect } from 'expo-router';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
-  Keyboard,
   Pressable,
-  ScrollView,
   StyleSheet,
   Text,
   type TextInputInstance,
@@ -19,8 +17,7 @@ import { toKana } from 'wanakana';
 
 import { AnswerField } from '@/components/review/answer-field';
 import { SessionSummary } from '@/components/review/session-summary';
-import { SubjectCharacters } from '@/components/review/subject-characters';
-import { SubjectInfo } from '@/components/review/subject-info';
+import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
@@ -45,9 +42,15 @@ export default function ReviewScreen() {
   const inputRef = useRef<TextInputInstance>(null);
   const [input, setInput] = useState('');
   const [message, setMessage] = useState<string | null>(null);
-  const [showInfo, setShowInfo] = useState(false);
   const shake = useRef(new Animated.Value(0)).current;
   const keyboard = useKeyboardInset();
+
+  // Coming back from an item's page (a sheet over this screen): the field lost focus to it.
+  useFocusEffect(
+    useCallback(() => {
+      inputRef.current?.focus();
+    }, []),
+  );
 
   // The dashboard's counts are stale the moment this screen closes.
   useEffect(
@@ -106,7 +109,6 @@ export default function ReviewScreen() {
     session.next();
     setInput('');
     setMessage(null);
-    setShowInfo(false);
     stopAudio();
     inputRef.current?.focus();
   }
@@ -114,14 +116,22 @@ export default function ReviewScreen() {
   function undo() {
     session.undo();
     setMessage(null);
-    setShowInfo(false);
     inputRef.current?.focus();
   }
 
-  function toggleInfo() {
-    if (!showInfo) Keyboard.dismiss();
-    else inputRef.current?.focus();
-    setShowInfo(!showInfo);
+  /** The item's page, as a sheet. Keeps back whichever part hasn't been asked yet. */
+  function openInfo() {
+    if (!item || !question) return;
+    const hide =
+      question.type === 'meaning' && !item.readingDone
+        ? 'reading'
+        : question.type === 'reading' && !item.meaningDone
+          ? 'meaning'
+          : undefined;
+    router.push({
+      pathname: '/subject/[id]',
+      params: { id: String(item.subject.id), ...(hide ? { hide } : {}) },
+    });
   }
 
   function close() {
@@ -227,31 +237,21 @@ export default function ReviewScreen() {
         styles.root,
         {
           backgroundColor: theme.background,
-          // Above the keyboard while it's up; above the home indicator when it isn't (with the
-          // info panel open, its scroll view handles that itself).
-          paddingBottom: keyboard.inset > 0 ? keyboard.inset : showInfo ? 0 : insets.bottom,
+          // Above the keyboard while it's up; above the home indicator when it isn't.
+          paddingBottom: keyboard.inset > 0 ? keyboard.inset : insets.bottom,
         },
       ]}>
-      {header(`${stats.completed} / ${stats.total}${state.wrappingUp ? ' · wrapping up' : ''}`, true)}
+      {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, true)}
 
-      <View style={[styles.hero, showInfo && styles.heroCompact, { backgroundColor: theme.background }]}>
-        <SubjectCharacters subject={item.subject} color={theme.text} size={showInfo ? 64 : 112} />
+      <View style={styles.hero}>
+        <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
       </View>
 
       <View style={styles.answerArea}>
-        {/* What's being asked. Readings get the filled label so the two are told apart at a glance. */}
-        <View
-          style={[
-            styles.label,
-            isReading
-              ? { backgroundColor: theme.inverseBackground, borderColor: theme.inverseBackground }
-              : { borderColor: theme.border },
-          ]}>
-          <Text style={[styles.labelText, { color: isReading ? theme.inverseText : theme.textSecondary }]}>
-            {typeName}{' '}
-            <Text style={[styles.labelStrong, { color: isReading ? theme.inverseText : theme.text }]}>{partName}</Text>
-          </Text>
-        </View>
+        {/* What's being asked, kept quiet: the type in grey, the part in the text colour. */}
+        <Text style={[styles.label, { color: theme.textSecondary }]}>
+          {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
+        </Text>
 
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
           <AnswerField
@@ -275,25 +275,13 @@ export default function ReviewScreen() {
           {graded ? (
             <View style={styles.actions}>
               <ActionButton label="Undo" onPress={undo} />
-              <ActionButton label={showInfo ? 'Hide Info' : 'Item Info'} onPress={toggleInfo} />
+              <ActionButton label="Item Info" onPress={openInfo} />
               <ActionButton label="Next" onPress={goNext} primary />
             </View>
           ) : null}
         </View>
       </View>
 
-      {showInfo && graded ? (
-        <ScrollView
-          style={styles.info}
-          contentContainerStyle={[styles.infoContent, { paddingBottom: insets.bottom + spacing.lg }]}>
-          <SubjectInfo
-            subject={item.subject}
-            synonyms={item.synonyms}
-            showMeaning={question.type === 'meaning' || item.meaningDone}
-            showReading={question.type === 'reading' || item.readingDone}
-          />
-        </ScrollView>
-      ) : null}
     </View>
   );
 }
@@ -322,24 +310,14 @@ const styles = StyleSheet.create({
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
 
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
-  heroCompact: { flex: 0, paddingVertical: spacing.md },
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
-  label: {
-    alignSelf: 'center',
-    borderWidth: 1,
-    borderRadius: 999,
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  labelText: { fontSize: 13, letterSpacing: 0.2 },
-  labelStrong: { fontWeight: '700' },
+  label: { fontSize: 14, textAlign: 'center' },
+  labelPart: { fontWeight: '600' },
   feedback: { minHeight: 44, gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
   actionText: { fontSize: 15, fontWeight: '600' },
 
-  info: { flex: 1 },
-  infoContent: { paddingHorizontal: spacing.md },
 });

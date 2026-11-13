@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useClient } from '../auth';
 import { PASSING_STAGE, SRS_GROUPS, type SrsGroup } from '../srs';
-import type { UserPreferences } from './types';
+import type { Subject, UserPreferences } from './types';
 
 export function useUser() {
   const client = useClient();
@@ -60,5 +60,70 @@ export function useUpdatePreferences() {
   return useMutation({
     mutationFn: (prefs: Partial<UserPreferences>) => client.updatePreferences(prefs),
     onSuccess: (user) => queryClient.setQueryData(['user'], user),
+  });
+}
+
+// --- Subjects ---------------------------------------------------------------------------------
+
+// Subjects change rarely (content edits), so they're cached for the session and fetched by id. Each
+// is cached under ['subject', id], whichever request brought it in.
+const SUBJECT_STALE = 60 * 60_000;
+
+export function useSubject(id: number) {
+  const client = useClient();
+  return useQuery({
+    queryKey: ['subject', id],
+    queryFn: async () => {
+      const [subject] = await client.getSubjects([id]);
+      if (!subject) throw new Error(`Subject ${id} not found`);
+      return subject;
+    },
+    staleTime: SUBJECT_STALE,
+  });
+}
+
+/** Several subjects at once, in the order given, reusing any already cached. */
+export function useSubjects(ids: number[]) {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['subjects', ids],
+    enabled: ids.length > 0,
+    queryFn: async () => {
+      const cached = new Map<number, Subject>();
+      for (const id of ids) {
+        const hit = queryClient.getQueryData<Subject>(['subject', id]);
+        if (hit) cached.set(id, hit);
+      }
+      const missing = ids.filter((id) => !cached.has(id));
+      if (missing.length) {
+        for (const subject of await client.getSubjects(missing)) {
+          queryClient.setQueryData(['subject', subject.id], subject);
+          cached.set(subject.id, subject);
+        }
+      }
+      return ids.flatMap((id) => (cached.has(id) ? [cached.get(id)!] : []));
+    },
+    staleTime: SUBJECT_STALE,
+  });
+}
+
+/** The user's own relationship to a subject: SRS progress, review stats, notes and synonyms. */
+export function useSubjectProgress(id: number) {
+  const client = useClient();
+  return useQuery({
+    queryKey: ['subject-progress', id],
+    queryFn: async () => {
+      const [assignments, stats, materials] = await Promise.all([
+        client.getAssignments({ subject_ids: id }),
+        client.getReviewStatistics([id]),
+        client.getStudyMaterials([id]),
+      ]);
+      return {
+        assignment: assignments[0]?.data ?? null,
+        stats: stats[0]?.data ?? null,
+        material: materials[0]?.data ?? null,
+      };
+    },
   });
 }

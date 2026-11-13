@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -6,7 +7,7 @@ import { sessionStats } from '@/lib/review/session';
 import { stageName } from '@/lib/srs';
 import { spacing, useTheme } from '@/theme';
 
-import { SubjectCharacters } from './subject-characters';
+import { SubjectCharacters } from '@/components/subject/subject-characters';
 
 export function SessionSummary({
   state,
@@ -78,7 +79,10 @@ function Group({
           const end = endingStages[item.assignmentId];
           const up = end !== undefined && end > item.srsStage;
           return (
-            <View key={item.assignmentId} style={[styles.cell, { backgroundColor: theme.surface }]}>
+            <Pressable
+              key={item.assignmentId}
+              onPress={() => router.push({ pathname: '/subject/[id]', params: { id: String(item.subject.id) } })}
+              style={({ pressed }) => [styles.cell, { backgroundColor: theme.surface, opacity: pressed ? 0.6 : 1 }]}>
               <SubjectCharacters subject={item.subject} color={theme.text} size={30} />
               <Text style={[styles.cellMeaning, { color: theme.textSecondary }]} numberOfLines={1}>
                 {item.subject.data.meanings.find((m) => m.primary)?.meaning}
@@ -88,7 +92,7 @@ function Group({
                   {up ? '↑' : '↓'} {stageName(end)}
                 </Text>
               ) : null}
-            </View>
+            </Pressable>
           );
         })}
       </View>
