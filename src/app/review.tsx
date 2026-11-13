@@ -2,7 +2,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -20,6 +20,7 @@ import { toKana } from 'wanakana';
 
 import { AnswerField } from '@/components/review/answer-field';
 import { confirmEndSession } from '@/components/review/end-session';
+import { LiftAway, Shine, useArrive, type ShineHandle } from '@/components/review/done-effects';
 import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
@@ -27,7 +28,7 @@ import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
-import type { SubjectType } from '@/lib/wanikani/types';
+import type { Subject, SubjectType } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
 
 const TYPE_NAMES: Record<SubjectType, string> = {
@@ -54,6 +55,16 @@ export default function ReviewScreen() {
   );
   const shake = useRef(new Animated.Value(0)).current;
   const headerHeight = useHeaderHeight();
+  const shine = useRef<ShineHandle>(null);
+  const arrive = useArrive();
+  /** The item just finished, lifting away over the next one (see LiftAway). */
+  const [lifting, setLifting] = useState<{ id: number; subject: Subject } | null>(null);
+  const endLift = useCallback(() => setLifting(null), []);
+  const playArrive = arrive.play;
+  const liftingId = lifting?.id;
+  useLayoutEffect(() => {
+    if (liftingId !== undefined) playArrive();
+  }, [liftingId, playArrive]);
   const window = useWindowDimensions();
 
   // Opening this screen starts a session, or picks up the one that's minimised.
@@ -115,6 +126,8 @@ export default function ReviewScreen() {
   function onSubmit() {
     if (graded) return goNext();
     if (!item || !question) return;
+    // Right, with the item's other part already right: this answer finishes the item.
+    const finishes = question.type === 'meaning' ? item.readingDone : item.meaningDone;
     const result = session.submit(input);
     if (!result) return;
     if (result.kind === 'retry') {
@@ -126,7 +139,12 @@ export default function ReviewScreen() {
     setInput(displayedAnswer(input, question.type));
     setMessage(closeEnough(result));
     if (result.kind === 'correct') {
-      Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      if (finishes) {
+        Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+        shine.current?.play();
+      } else {
+        Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
+      }
       if (question.type === 'reading' && session.autoplayAudio) {
         const audio = pronunciations(item.subject)[0];
         if (audio) playAudio(audio.url);
@@ -149,6 +167,10 @@ export default function ReviewScreen() {
   }
 
   function goNext() {
+    // A finished item lifts away as the next one arrives.
+    if (graded?.completedItem && item) {
+      setLifting({ id: item.assignmentId, subject: item.subject });
+    }
     session.next();
     setInput('');
     setMessage(null);
@@ -294,8 +316,15 @@ export default function ReviewScreen() {
           <View style={styles.heroStack}>
             {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
             <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
-              <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+              <Animated.View style={arrive.style}>
+                <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+              </Animated.View>
             </HoldToUndo>
+            {lifting ? (
+              <LiftAway key={lifting.id} onDone={endLift}>
+                <SubjectCharacters subject={lifting.subject} color={theme.text} size={112} />
+              </LiftAway>
+            ) : null}
             {/* After a miss, the right answer, big, right under the characters. Positioned out of
                 the layout so the characters and the answer area don't move. */}
             {correction ? (
@@ -335,6 +364,8 @@ export default function ReviewScreen() {
               returnKeyType={graded ? 'next' : 'done'}
               accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
             />
+            {/* An item done: light sweeps across the green field. */}
+            <Shine ref={shine} radius={16} />
           </Animated.View>
 
           <View style={styles.feedback}>
@@ -385,7 +416,8 @@ const styles = StyleSheet.create({
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
 
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
-  heroStack: { alignItems: 'center' },
+  // Centres the lifting characters (absolutely positioned) over the arriving ones.
+  heroStack: { alignItems: 'center', justifyContent: 'center' },
   correction: { position: 'absolute', top: '100%', marginTop: spacing.sm, fontSize: 28, fontWeight: '600', textAlign: 'center' },
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
