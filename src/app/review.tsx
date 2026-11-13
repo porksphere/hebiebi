@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toKana } from 'wanakana';
 
 import { AnswerField } from '@/components/review/answer-field';
+import { confirmEndSession } from '@/components/review/end-session';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
@@ -78,15 +79,17 @@ export default function ReviewScreen() {
 
   // A session with nothing left to resume (finished, empty, failed to load) ends when this screen
   // goes, not before, so the summary stays put while the screen slides away.
+  // Ending from here works the same way: close first, end once gone.
   const spent = finished || session.empty || !!session.error;
   const spentRef = useRef(spent);
+  const endOnLeave = useRef(false);
   useEffect(() => {
     spentRef.current = spent;
   }, [spent]);
   const { end } = session;
   useEffect(
     () => () => {
-      if (spentRef.current) end();
+      if (spentRef.current || endOnLeave.current) end();
     },
     [end],
   );
@@ -160,6 +163,13 @@ export default function ReviewScreen() {
     router.back();
   }
 
+  function endSession() {
+    confirmEndSession(session, () => {
+      endOnLeave.current = true;
+      router.back();
+    });
+  }
+
   // --- Non-question states ----------------------------------------------------------------------
 
   const header = (title: string, { leading, wrapUp = false }: { leading?: 'minimize' | 'close'; wrapUp?: boolean } = {}) => (
@@ -190,6 +200,8 @@ export default function ReviewScreen() {
             accessibilityLabel={state.wrappingUp ? 'Stop wrapping up' : 'Wrap up'}
             onPress={session.toggleWrapUp}
           />
+          {/* Ending, beside it: the chevron on the left only puts the session away. */}
+          <Stack.Toolbar.Button icon="xmark" accessibilityLabel="End session" onPress={endSession} />
         </Stack.Toolbar>
       ) : null}
     </>
