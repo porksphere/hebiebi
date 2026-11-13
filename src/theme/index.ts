@@ -1,4 +1,5 @@
 import { useColorScheme } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { useAppearance } from '@/lib/appearance';
 
@@ -43,6 +44,19 @@ export function useTheme(): Palette & { scheme: 'light' | 'dark' } {
 }
 
 export const spacing = { xs: 4, sm: 8, md: 16, lg: 24, xl: 32 } as const;
+
+/**
+ * A screen's side margins: the usual 16, plus whatever the system keeps at that edge (a nav bar
+ * down the side of a folded phone, a notch in landscape). Everything a screen shows sits inside
+ * these, except what scrolls sideways, backgrounds, and list dividers, which run to the trailing
+ * edge as native lists do.
+ */
+export function useGutters() {
+  const insets = useSafeAreaInsets();
+  const left = insets.left + spacing.md;
+  const right = insets.right + spacing.md;
+  return { left, right, insetLeft: insets.left, insetRight: insets.right, padding: { paddingLeft: left, paddingRight: right } };
+}
 
 /**
  * WaniKani's colours for item types, which its users read at a glance. Used sparingly: dots and

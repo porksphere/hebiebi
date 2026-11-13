@@ -60,5 +60,8 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   correct/incorrect answer states and WaniKani's item-type colours (`TYPE_COLORS`): small dots and
   tints where you browse, and the review answer field before grading (a faint tint for a meaning,
   a stronger one for a reading, WaniKani's light/dark cue). Tints, via `typeTint`, never solid.
+- Side margins come from `useGutters()` (`src/theme`): 16 plus the side safe-area inset (the nav
+  bar down the side of a folded phone). Content stays inside them. Only things that scroll
+  sideways, backgrounds, and list dividers (to the trailing edge, as native lists do) go past.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.

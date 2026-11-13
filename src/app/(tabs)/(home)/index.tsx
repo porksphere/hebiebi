@@ -9,10 +9,11 @@ import { sessionStats } from '@/lib/review/session';
 import { flushReviews, pendingCount } from '@/lib/review/submissions';
 import { isInProgress, useReviewSession } from '@/lib/review/use-review-session';
 import { useLevelKanji, useSearchIndex, useSummary, useUser } from '@/lib/wanikani/queries';
-import { spacing, useTheme } from '@/theme';
+import { spacing, useGutters, useTheme } from '@/theme';
 
 export default function TodayScreen() {
   const theme = useTheme();
+  const gutters = useGutters();
   const client = useClient();
   const queryClient = useQueryClient();
   const user = useUser();
@@ -84,7 +85,7 @@ export default function TodayScreen() {
     <ScrollView
       style={{ backgroundColor: theme.background }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, gutters.padding]}
       refreshControl={<RefreshControl refreshing={refreshing} onRefresh={refresh} tintColor={theme.textSecondary} />}>
       {pending > 0 ? (
         <Pressable onPress={sync} style={[styles.banner, { borderColor: theme.border }]}>

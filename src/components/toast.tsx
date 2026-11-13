@@ -11,7 +11,7 @@ import { FullWindowOverlay } from 'react-native-screens';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { dismissToast, useToast, type Toast } from '@/lib/toast';
-import { spacing, useTheme } from '@/theme';
+import { spacing, useGutters, useTheme } from '@/theme';
 
 const VISIBLE_MS = 4000;
 
@@ -33,6 +33,7 @@ function Overlay({ children }: { children: ReactNode }) {
 function ToastCard({ toast }: { toast: Toast }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const gutters = useGutters();
   const [t] = useState(() => new Animated.Value(0));
 
   useEffect(() => {
@@ -46,7 +47,7 @@ function ToastCard({ toast }: { toast: Toast }) {
   }, [t, toast.id]);
 
   return (
-    <View pointerEvents="box-none" style={[styles.anchor, { top: insets.top + spacing.sm }]}>
+    <View pointerEvents="box-none" style={[styles.anchor, { top: insets.top + spacing.sm, left: gutters.left, right: gutters.right }]}>
       <Animated.View
         style={{
           opacity: t,
@@ -76,7 +77,7 @@ function ToastCard({ toast }: { toast: Toast }) {
 }
 
 const styles = StyleSheet.create({
-  anchor: { position: 'absolute', left: spacing.md, right: spacing.md, alignItems: 'center' },
+  anchor: { position: 'absolute', alignItems: 'center' },
   card: {
     flexDirection: 'row',
     alignItems: 'center',

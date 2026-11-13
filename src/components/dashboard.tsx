@@ -71,13 +71,12 @@ export function ReviewHero({
   return (
     <View style={styles.hero}>
       {featured ? (
-        <Text
-          style={[styles.ghost, { color: theme.surface }]}
-          pointerEvents="none"
-          accessible={false}
-          importantForAccessibility="no">
-          {featured.characters}
-        </Text>
+        // Decoration, so it stops at the edge of what's visible rather than running under a side bar.
+        <View style={styles.ghostClip} pointerEvents="none">
+          <Text style={[styles.ghost, { color: theme.surface }]} accessible={false} importantForAccessibility="no">
+            {featured.characters}
+          </Text>
+        </View>
       ) : null}
       {featured ? (
         <Pressable
@@ -166,11 +165,13 @@ export function formatWhen(iso: string) {
 
 const styles = StyleSheet.create({
   hero: { minHeight: 190, justifyContent: 'flex-end', gap: spacing.sm + 4 },
-  // Runs off the right edge on purpose; the scroll view clips it.
+  // The kanji runs off the right edge on purpose. The clip reaches through the page's 16 margin to
+  // that edge and cuts it there.
+  ghostClip: { position: 'absolute', top: -56, height: 300, left: 0, right: -spacing.md, overflow: 'hidden' },
   ghost: {
     position: 'absolute',
-    top: -56,
-    right: -78,
+    top: 0,
+    right: -62,
     fontSize: 270,
     lineHeight: 300,
     fontWeight: '600',

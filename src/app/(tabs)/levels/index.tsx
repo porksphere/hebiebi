@@ -6,7 +6,7 @@ import { TypeDot } from '@/components/subject/type-dot';
 import { PASSING_STAGE } from '@/lib/srs';
 import { useLevelStages, useLevelSubjects, useUser } from '@/lib/wanikani/queries';
 import type { Subject } from '@/lib/wanikani/types';
-import { spacing, useTheme } from '@/theme';
+import { spacing, useGutters, useTheme } from '@/theme';
 
 const LEVELS = Array.from({ length: 60 }, (_, i) => i + 1);
 
@@ -16,6 +16,7 @@ const LEVELS = Array.from({ length: 60 }, (_, i) => i + 1);
  */
 export default function LevelsScreen() {
   const theme = useTheme();
+  const gutters = useGutters();
   const { data: user } = useUser();
   const current = user?.level ?? 1;
   const maxGranted = user?.subscription.max_level_granted ?? 60;
@@ -30,14 +31,19 @@ export default function LevelsScreen() {
     <ScrollView
       style={{ backgroundColor: theme.background }}
       contentInsetAdjustmentBehavior="automatic"
-      contentContainerStyle={styles.content}>
+      contentContainerStyle={[styles.content, gutters.padding]}>
       <ScrollView
         ref={strip}
         horizontal
         showsHorizontalScrollIndicator={false}
         onLayout={(e) => (stripWidth.current = e.nativeEvent.layout.width)}
-        style={[styles.strip, { borderBottomColor: theme.border }]}
-        contentContainerStyle={styles.stripContent}>
+        // Scrolls sideways, so it runs under anything at the screen's sides; its ends are padded
+        // so the first and last numbers can still be pulled clear.
+        style={[styles.strip, { borderBottomColor: theme.border, marginLeft: -gutters.left, marginRight: -gutters.right }]}
+        contentContainerStyle={[
+          styles.stripContent,
+          { paddingLeft: gutters.insetLeft + spacing.sm, paddingRight: gutters.insetRight + spacing.sm },
+        ]}>
         {LEVELS.map((n) => {
           const selected = n === level;
           return (
@@ -86,6 +92,7 @@ export default function LevelsScreen() {
  */
 function Level({ level }: { level: number }) {
   const theme = useTheme();
+  const gutters = useGutters();
   const subjects = useLevelSubjects(level);
   const stages = useLevelStages(level);
 
@@ -157,10 +164,15 @@ function Level({ level }: { level: number }) {
                 accessibilityRole="button"
                 accessibilityLabel={`${d.characters ?? ''}, ${meaning}${state === 'locked' ? ', locked' : ''}`}
                 onPress={() => openSubject(subject.id)}
-                // The rule keeps its full strength; only the words fade.
-                style={[styles.wordRule, { borderTopColor: theme.border }]}>
+                // The rule keeps its full strength (only the words fade) and, like a native list's,
+                // runs on to the trailing edge of the screen.
+                style={[styles.wordRule, { borderTopColor: theme.border, marginRight: -gutters.right }]}>
                 {({ pressed }) => (
-                  <View style={[styles.word, { opacity: (pressed ? 0.5 : 1) * (state === 'locked' ? 0.35 : 1) }]}>
+                  <View
+                    style={[
+                      styles.word,
+                      { paddingRight: gutters.right, opacity: (pressed ? 0.5 : 1) * (state === 'locked' ? 0.35 : 1) },
+                    ]}>
                     <Text style={[styles.wordChars, { color: theme.text }]}>{d.characters}</Text>
                     {reading && reading !== d.characters ? (
                       <Text style={[styles.wordReading, { color: theme.textSecondary }]}>{reading}</Text>
@@ -195,8 +207,8 @@ const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.lg, paddingBottom: 120 },
 
   // Runs edge to edge, past the page's side padding.
-  strip: { marginHorizontal: -spacing.md, borderBottomWidth: StyleSheet.hairlineWidth, flexGrow: 0 },
-  stripContent: { alignItems: 'flex-end', paddingHorizontal: spacing.sm, paddingBottom: spacing.sm + 4 },
+  strip: { borderBottomWidth: StyleSheet.hairlineWidth, flexGrow: 0 },
+  stripContent: { alignItems: 'flex-end', paddingBottom: spacing.sm + 4 },
   stripItem: { minWidth: 44, minHeight: 52, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'flex-end' },
   stripNumber: { fontSize: 17, fontWeight: '600', fontVariant: ['tabular-nums'], paddingBottom: 5 },
   stripChosen: { fontSize: 40, lineHeight: 46, fontFamily: MINCHO, fontWeight: '600', paddingHorizontal: 6 },

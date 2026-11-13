@@ -316,7 +316,7 @@ export default function ReviewScreen() {
       behavior="padding"
       keyboardVerticalOffset={headerHeight - insets.bottom}
       style={[styles.root, { backgroundColor: theme.background }]}>
-      <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+      <View style={[styles.root, { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
         {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, {
           leading: 'minimize',
           wrapUp: true,
@@ -339,9 +339,15 @@ export default function ReviewScreen() {
                 the layout so the characters and the answer area don't move. */}
             {correction ? (
               <Text
-                style={[styles.correction, { color: theme.text, width: window.width - spacing.md * 2 }]}
-                numberOfLines={2}
+                style={[
+                  styles.correction,
+                  { color: theme.text, width: window.width - insets.left - insets.right - spacing.md * 2 },
+                ]}
+                // One line, shrinking to fit: several long meanings get smaller rather than
+                // wrapping down over the answer field.
+                numberOfLines={1}
                 adjustsFontSizeToFit
+                minimumFontScale={0.4}
                 accessibilityLanguage={isReading ? 'ja' : 'en'}>
                 {correction}
               </Text>

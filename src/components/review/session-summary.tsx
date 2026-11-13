@@ -5,7 +5,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import type { ReviewItem, SessionState } from '@/lib/review/session';
 import { sessionStats } from '@/lib/review/session';
 import { stageName } from '@/lib/srs';
-import { spacing, useTheme } from '@/theme';
+import { spacing, useGutters, useTheme } from '@/theme';
 
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 
@@ -24,6 +24,7 @@ export function SessionSummary({
 }) {
   const theme = useTheme();
   const insets = useSafeAreaInsets();
+  const gutters = useGutters();
   const stats = sessionStats(state);
   const done = state.completed.map((id) => state.items[id]);
   const wrong = done.filter((i) => i.incorrectMeaning + i.incorrectReading > 0);
@@ -31,7 +32,7 @@ export function SessionSummary({
 
   return (
     <View style={[styles.root, { backgroundColor: theme.background }]}>
-      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={styles.content}>
+      <ScrollView contentInsetAdjustmentBehavior="automatic" contentContainerStyle={[styles.content, gutters.padding]}>
         <Text style={[styles.big, { color: theme.text }]}>{stats.accuracy ?? 0}%</Text>
         <Text style={[styles.caption, { color: theme.textSecondary }]}>
           {stats.correctFirstTry} of {stats.completed} right first time
@@ -50,7 +51,8 @@ export function SessionSummary({
         {wrong.length ? <Group title={`Answered wrong · ${wrong.length}`} items={wrong} endingStages={endingStages} /> : null}
         {right.length ? <Group title={`Answered right · ${right.length}`} items={right} endingStages={endingStages} /> : null}
       </ScrollView>
-      <View style={[styles.footer, { paddingBottom: insets.bottom + spacing.md, borderTopColor: theme.border }]}>
+      <View
+        style={[styles.footer, gutters.padding, { paddingBottom: insets.bottom + spacing.md, borderTopColor: theme.border }]}>
         <Pressable
           onPress={onDone}
           style={({ pressed }) => [styles.done, { backgroundColor: theme.inverseBackground, opacity: pressed ? 0.8 : 1 }]}>
@@ -112,7 +114,7 @@ const styles = StyleSheet.create({
   cell: { width: '31.5%', borderRadius: 14, padding: spacing.sm, alignItems: 'center', gap: 2 },
   cellMeaning: { fontSize: 12 },
   cellStage: { fontSize: 11, fontWeight: '600' },
-  footer: { paddingHorizontal: spacing.md, paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
+  footer: { paddingTop: spacing.md, borderTopWidth: StyleSheet.hairlineWidth },
   done: { borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
   doneText: { fontSize: 17, fontWeight: '600' },
 });

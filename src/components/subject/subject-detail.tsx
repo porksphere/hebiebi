@@ -6,7 +6,7 @@ import { playAudio, pronunciations } from '@/lib/audio';
 import { stageName } from '@/lib/srs';
 import { useMnemonicImage, useSubjectProgress, useSubjects } from '@/lib/wanikani/queries';
 import type { AnySubjectData, Reading, Subject, SubjectType } from '@/lib/wanikani/types';
-import { spacing, useTheme } from '@/theme';
+import { spacing, useGutters, useTheme } from '@/theme';
 
 import { Markup } from './markup';
 import { SubjectCharacters } from './subject-characters';
@@ -27,6 +27,7 @@ const READING_TYPES: { type: NonNullable<Reading['type']>; label: string }[] = [
  */
 export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: HiddenPart }) {
   const theme = useTheme();
+  const gutters = useGutters();
   const data = subject.data as AnySubjectData;
   const showMeaning = hide !== 'meaning';
   const showReading = hide !== 'reading';
@@ -44,7 +45,7 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
   const similar = useSubjects(similarIds);
 
   return (
-    <View style={styles.root}>
+    <View style={[styles.root, gutters.padding]}>
       <View style={styles.hero}>
         <SubjectCharacters subject={subject} color={theme.text} size={104} />
         <Text style={[styles.heroMeaning, { color: theme.text }]}>{showMeaning ? primaryMeaning : '···'}</Text>

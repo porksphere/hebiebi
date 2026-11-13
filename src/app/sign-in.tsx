@@ -41,7 +41,7 @@ export default function SignInScreen() {
 
   return (
     <View style={[styles.root, { backgroundColor: groupedBackground(theme) }]}>
-      <View style={[styles.hero, { paddingTop: insets.top + 48 }]}>
+      <View style={[styles.hero, { paddingTop: insets.top + 48, paddingLeft: insets.left, paddingRight: insets.right }]}>
         <RNText style={[styles.glyph, { color: theme.text }]}>蛇</RNText>
         <RNText style={[styles.title, { color: theme.text }]}>Hebiebi</RNText>
         <RNText style={[styles.subtitle, { color: theme.textSecondary }]}>
