@@ -114,12 +114,6 @@ export default function ReviewScreen() {
     inputRef.current?.focus();
   }
 
-  function undo() {
-    session.undo();
-    setMessage(null);
-    inputRef.current?.focus();
-  }
-
   /** The item's page, as a sheet. Keeps back whichever part hasn't been asked yet. */
   function openInfo() {
     if (!item || !question) return;
@@ -272,7 +266,6 @@ export default function ReviewScreen() {
             {message ? <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text> : null}
             {graded ? (
               <View style={styles.actions}>
-                <ActionButton label="Undo" onPress={undo} />
                 <ActionButton label="Item Info" onPress={openInfo} />
                 <ActionButton label="Next" onPress={goNext} primary />
               </View>

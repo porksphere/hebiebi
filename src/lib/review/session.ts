@@ -1,5 +1,4 @@
-// The review queue, as pure functions over an immutable state so it can be unit-tested and so the
-// screen can keep the previous state around for undo.
+// The review queue, as pure functions over an immutable state so it can be unit-tested.
 //
 // How a session runs (matching WaniKani's own reviews):
 //   - Up to ACTIVE_SIZE items are "in play". Each question picks a random item in play and a random

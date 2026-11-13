@@ -18,7 +18,7 @@ import { enqueueReview, flushReviews, pendingCount } from './submissions';
 
 export type Phase =
   | { kind: 'answering' }
-  /** Graded; waiting for the user to move on (or undo). */
+  /** Graded; waiting for the user to move on. */
   | { kind: 'graded'; correct: boolean; result: CheckResult; completedItem: ReviewItem | null };
 
 /** Loads everything a session needs in one go: assignments, their subjects, user synonyms. */
@@ -58,8 +58,6 @@ export function useReviewSession() {
   const data = useSessionData();
   const [state, setState] = useState<SessionState | null>(null);
   const [phase, setPhase] = useState<Phase>({ kind: 'answering' });
-  /** The state before the last grade, for undo. */
-  const beforeGrade = useRef<SessionState | null>(null);
   /** assignment id → SRS stage after its review, as WaniKani reports it back. */
   const [endingStages, setEndingStages] = useState<Record<number, number>>({});
   const [unsent, setUnsent] = useState(0);
@@ -91,7 +89,6 @@ export function useReviewSession() {
       const result = checkAnswer(item.subject, state.current.type, input, item.synonyms);
       if (result.kind === 'retry') return result;
       const correct = result.kind === 'correct';
-      beforeGrade.current = state;
       const graded = answerCurrent(state, correct);
       setState(graded.state);
       setPhase({ kind: 'graded', correct, result, completedItem: graded.completedItem });
@@ -114,17 +111,9 @@ export function useReviewSession() {
         sync();
       });
     }
-    beforeGrade.current = null;
     setState(advance(state));
     setPhase({ kind: 'answering' });
   }, [state, phase, sync]);
-
-  const undo = useCallback(() => {
-    if (!beforeGrade.current || phase.kind !== 'graded') return;
-    setState(beforeGrade.current);
-    beforeGrade.current = null;
-    setPhase({ kind: 'answering' });
-  }, [phase]);
 
   // These two are wired to native header menu items, which can hold on to the callback from an
   // earlier render. So they read the CURRENT state (functional update, a ref for the phase) rather
@@ -151,7 +140,6 @@ export function useReviewSession() {
     phase,
     submit,
     next,
-    undo,
     skipQuestion,
     toggleWrapUp,
     endingStages,
