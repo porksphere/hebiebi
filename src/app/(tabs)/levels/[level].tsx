@@ -80,10 +80,10 @@ export default function LevelScreen() {
                       accessibilityRole="button"
                       accessibilityLabel={`${d.characters ?? ''}, ${meaning}${state === 'locked' ? ', locked' : ''}`}
                       onPress={() => openSubject(subject.id)}
-                      style={({ pressed }) => [
-                        styles.word,
-                        { borderTopColor: theme.border, opacity: (pressed ? 0.5 : 1) * (state === 'locked' ? 0.35 : 1) },
-                      ]}>
+                      // The rule keeps its full strength; only the words fade.
+                      style={[styles.wordRule, { borderTopColor: theme.border }]}>
+                      {({ pressed }) => (
+                        <View style={[styles.word, { opacity: (pressed ? 0.5 : 1) * (state === 'locked' ? 0.35 : 1) }]}>
                       <Text style={[styles.wordChars, { color: theme.text }]}>{d.characters}</Text>
                       {reading && reading !== d.characters ? (
                         <Text style={[styles.wordReading, { color: theme.textSecondary }]}>{reading}</Text>
@@ -91,6 +91,8 @@ export default function LevelScreen() {
                       <Text style={[styles.wordMeaning, { color: theme.textSecondary }]} numberOfLines={1}>
                         {meaning}
                       </Text>
+                        </View>
+                      )}
                     </Pressable>
                   );
                 })}
@@ -135,13 +137,8 @@ const styles = StyleSheet.create({
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
   vocabTitle: { marginBottom: spacing.sm + 2 },
-  word: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: spacing.sm + 2,
-    paddingVertical: 11,
-    borderTopWidth: StyleSheet.hairlineWidth,
-  },
+  wordRule: { borderTopWidth: StyleSheet.hairlineWidth },
+  word: { flexDirection: 'row', alignItems: 'baseline', gap: spacing.sm + 2, paddingVertical: 11 },
   wordChars: { fontSize: 19 },
   wordReading: { fontSize: 13 },
   wordMeaning: { fontSize: 13, flex: 1, textAlign: 'right' },
