@@ -31,6 +31,11 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   - A summary at the end showing each item's new SRS stage.
 - Each finished item's review is saved on the phone first and then sent, so a dropped connection
   doesn't lose work. Unsent reviews retry the next time the app opens.
+- **Levels**: every level's radicals, kanji and vocabulary, with the ones you haven't unlocked
+  faded. Tap any item for its page.
+- **Search** (the tab bar's search button): by meaning, reading (kana or romaji) or characters.
+  The first search downloads a slim list of every subject (about 1–2 MB) and keeps it on the phone;
+  after that only changes are fetched.
 - **Settings**: account info, review preferences (synced with WaniKani), and sign out.
 
 Not yet: lessons, item browsing and search, extra study, widgets, notifications.

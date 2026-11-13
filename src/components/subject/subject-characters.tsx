@@ -12,7 +12,36 @@ function fontSizeFor(length: number, base: number) {
 
 /** The subject's characters, or for an image-only radical, its SVG tinted to the text colour. */
 export function SubjectCharacters({ subject, color, size = 96 }: { subject: Subject; color: string; size?: number }) {
-  const { characters } = subject.data;
+  const image =
+    subject.object === 'radical' && !subject.data.characters
+      ? (subject.data.character_images.find((i) => i.content_type === 'image/svg+xml') ??
+        subject.data.character_images[0])
+      : undefined;
+  return (
+    <Glyph
+      characters={subject.data.characters}
+      imageUrl={image?.url ?? null}
+      label={subject.data.meanings[0]?.meaning}
+      color={color}
+      size={size}
+    />
+  );
+}
+
+/** Characters, or an image-only radical's SVG, from the bare fields (a search entry, say). */
+export function Glyph({
+  characters,
+  imageUrl,
+  label,
+  color,
+  size = 96,
+}: {
+  characters: string | null;
+  imageUrl: string | null;
+  label?: string;
+  color: string;
+  size?: number;
+}) {
   if (characters) {
     return (
       <Text
@@ -24,15 +53,10 @@ export function SubjectCharacters({ subject, color, size = 96 }: { subject: Subj
       </Text>
     );
   }
-  const image =
-    subject.object === 'radical'
-      ? (subject.data.character_images.find((i) => i.content_type === 'image/svg+xml') ??
-        subject.data.character_images[0])
-      : undefined;
-  if (!image) return <Text style={[styles.text, { color, fontSize: size }]}>?</Text>;
+  if (!imageUrl) return <Text style={[styles.text, { color, fontSize: size }]}>?</Text>;
   return (
-    <View accessibilityLabel={subject.data.meanings[0]?.meaning}>
-      <Image source={{ uri: image.url }} style={{ width: size, height: size }} tintColor={color} contentFit="contain" />
+    <View accessibilityLabel={label}>
+      <Image source={{ uri: imageUrl }} style={{ width: size, height: size }} tintColor={color} contentFit="contain" />
     </View>
   );
 }

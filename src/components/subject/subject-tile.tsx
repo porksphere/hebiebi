@@ -1,5 +1,7 @@
 import { router } from 'expo-router';
-import { Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text } from 'react-native';
+
+import { Grid } from '@/components/grid';
 
 import type { Subject } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
@@ -7,7 +9,8 @@ import { spacing, useTheme } from '@/theme';
 import { SubjectCharacters } from './subject-characters';
 
 /** A related subject (a component, or something it appears in): tap to open its page. */
-export function SubjectTile({ subject }: { subject: Subject }) {
+/** `faded`: not unlocked yet (on a level page). */
+export function SubjectTile({ subject, faded }: { subject: Subject; faded?: boolean }) {
   const theme = useTheme();
   const meaning = subject.data.meanings.find((m) => m.primary)?.meaning ?? '';
   return (
@@ -15,7 +18,10 @@ export function SubjectTile({ subject }: { subject: Subject }) {
       accessibilityRole="button"
       accessibilityLabel={`${subject.data.characters ?? ''} ${meaning}`}
       onPress={() => router.push({ pathname: '/subject/[id]', params: { id: String(subject.id) } })}
-      style={({ pressed }) => [styles.tile, { backgroundColor: theme.surface, opacity: pressed ? 0.6 : 1 }]}>
+      style={({ pressed }) => [
+        styles.tile,
+        { backgroundColor: theme.surface, opacity: (pressed ? 0.6 : 1) * (faded ? 0.4 : 1) },
+      ]}>
       <SubjectCharacters subject={subject} color={theme.text} size={30} />
       <Text style={[styles.meaning, { color: theme.textSecondary }]} numberOfLines={1}>
         {meaning}
@@ -24,20 +30,18 @@ export function SubjectTile({ subject }: { subject: Subject }) {
   );
 }
 
-export function SubjectTileGrid({ subjects }: { subjects: Subject[] }) {
+export function SubjectTileGrid({ subjects, faded }: { subjects: Subject[]; faded?: (s: Subject) => boolean }) {
   return (
-    <View style={styles.grid}>
+    <Grid columns={4}>
       {subjects.map((s) => (
-        <SubjectTile key={s.id} subject={s} />
+        <SubjectTile key={s.id} subject={s} faded={faded?.(s)} />
       ))}
-    </View>
+    </Grid>
   );
 }
 
 const styles = StyleSheet.create({
-  grid: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   tile: {
-    width: '23.5%',
     minHeight: 76,
     borderRadius: 14,
     paddingVertical: spacing.sm,

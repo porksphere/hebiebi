@@ -3,6 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClient } from '../auth';
 import { PASSING_STAGE, SRS_GROUPS, type SrsGroup } from '../srs';
 import { getMnemonicImage, mayHaveMnemonicImage } from './mnemonic-image-cache';
+import { readCachedIndex, syncIndex } from './search-index-cache';
 import type { Subject, UserPreferences } from './types';
 
 export function useUser() {
@@ -137,5 +138,53 @@ export function useMnemonicImage(subject: Subject) {
     queryFn: () => getMnemonicImage(subject),
     staleTime: Infinity,
     retry: false,
+  });
+}
+
+// --- Browse and search ------------------------------------------------------------------------
+
+/** Every subject in a level, in WaniKani's lesson order. Seeds the per-subject cache too. */
+export function useLevelSubjects(level: number) {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['level-subjects', level],
+    staleTime: SUBJECT_STALE,
+    queryFn: async () => {
+      const subjects = await client.getSubjectsByLevel(level);
+      for (const s of subjects) queryClient.setQueryData(['subject', s.id], s);
+      return subjects.sort((a, b) => a.data.lesson_position - b.data.lesson_position);
+    },
+  });
+}
+
+/** subject id → SRS stage, for the user's assignments in a level (missing = not unlocked yet). */
+export function useLevelStages(level: number) {
+  const client = useClient();
+  return useQuery({
+    queryKey: ['level-stages', level],
+    queryFn: async () => {
+      const assignments = await client.getAssignments({ levels: level });
+      return new Map(
+        assignments.filter((a) => a.data.unlocked_at).map((a) => [a.data.subject_id, a.data.srs_stage]),
+      );
+    },
+  });
+}
+
+/**
+ * The search index: what's on the phone straight away, then brought up to date. The first ever
+ * load fetches every subject, which takes a few seconds.
+ */
+export function useSearchIndex() {
+  const client = useClient();
+  return useQuery({
+    queryKey: ['search-index'],
+    queryFn: () => syncIndex(client),
+    initialData: readCachedIndex,
+    // The cached copy is shown at once but still counts as stale, so it's topped up in the background.
+    initialDataUpdatedAt: 0,
+    staleTime: 6 * 60 * 60_000,
+    gcTime: Infinity,
   });
 }

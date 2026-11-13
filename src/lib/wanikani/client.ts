@@ -164,6 +164,12 @@ export function createClient(token: string) {
     getSubjects: (ids: number[]) =>
       getByIds<unknown>('/subjects', ids) as unknown as Promise<Subject[]>,
 
+    /** Every subject, or only those changed since `updatedAfter` (hidden ones included). */
+    getAllSubjects: (updatedAfter?: string) =>
+      getAll<unknown>('/subjects', updatedAfter ? { updated_after: updatedAfter } : undefined) as unknown as Promise<
+        Subject[]
+      >,
+
     getSubjectsByLevel: (level: number, types?: string[]) =>
       getAll<unknown>('/subjects', { levels: level, types, hidden: false }) as unknown as Promise<
         Subject[]
