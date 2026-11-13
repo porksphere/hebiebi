@@ -34,8 +34,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   - A summary at the end showing each item's new SRS stage.
 - Each finished item's review is saved on the phone first and then sent, so a dropped connection
   doesn't lose work. Unsent reviews retry the next time the app opens.
-- **Levels**: all sixty levels on one ruled sheet. A level shows its radicals and kanji on the same
-  practice paper as Today and its vocabulary as a list; what you haven't unlocked is blank or faint.
+- **Levels**: opens on your level, with a strip of numbers along the top to slide to another. A
+  level shows its radicals and kanji on the same practice paper as Today and its vocabulary as a
+  list; what you haven't unlocked is blank or faint.
 - **Search** (the tab bar's search button): by meaning, reading (kana or romaji) or characters.
   The first search downloads a slim list of every subject (about 1–2 MB) and keeps it on the phone;
   after that only changes are fetched.
