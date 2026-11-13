@@ -21,8 +21,18 @@ import { enqueueReview, flushReviews, pendingCount } from './submissions';
 
 export type Phase =
   | { kind: 'answering' }
-  /** Graded; waiting for the user to move on. `answer` is kept so a resumed screen can show it. */
-  | { kind: 'graded'; correct: boolean; result: CheckResult; answer: string; completedItem: ReviewItem | null };
+  /**
+   * Graded; waiting for the user to move on. `answer` is kept so a resumed screen can show it, and
+   * `before` is the session as it was, for undo (possible until Next, since nothing's sent before).
+   */
+  | {
+      kind: 'graded';
+      correct: boolean;
+      result: CheckResult;
+      answer: string;
+      completedItem: ReviewItem | null;
+      before: SessionState;
+    };
 
 const SESSION_KEY = ['review-session'] as const;
 
@@ -162,7 +172,7 @@ function useSessionController() {
       const correct = result.kind === 'correct';
       const graded = answerCurrent(state, correct);
       setState(graded.state);
-      setPhase({ kind: 'graded', correct, result, answer: input, completedItem: graded.completedItem });
+      setPhase({ kind: 'graded', correct, result, answer: input, completedItem: graded.completedItem, before: state });
       return result;
     },
     [state, phase],
@@ -175,6 +185,14 @@ function useSessionController() {
     setState(advance(state));
     setPhase({ kind: 'answering' });
   }, [state, phase, queueReview]);
+
+  /** Takes back the last answer. Returns what was typed, to put back in the field. */
+  const undo = useCallback((): string | null => {
+    if (phase.kind !== 'graded') return null;
+    setState(phase.before);
+    setPhase({ kind: 'answering' });
+    return phase.answer;
+  }, [phase]);
 
   // Wired to a native header button, which can hold on to the callback from an earlier render. So
   // it reads the CURRENT state (a functional update) rather than closing over it: a stale closure
@@ -195,6 +213,7 @@ function useSessionController() {
     phase,
     submit,
     next,
+    undo,
     toggleWrapUp,
     endingStages,
     unsent,

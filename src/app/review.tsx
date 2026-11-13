@@ -18,6 +18,7 @@ import { toKana } from 'wanakana';
 
 import { AnswerField } from '@/components/review/answer-field';
 import { confirmEndSession } from '@/components/review/end-session';
+import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
@@ -130,6 +131,15 @@ export default function ReviewScreen() {
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
     }
+  }
+
+  function undo() {
+    const answer = session.undo();
+    if (answer === null) return;
+    setInput(answer);
+    setMessage(null);
+    stopAudio();
+    inputRef.current?.focus();
   }
 
   function goNext() {
@@ -273,7 +283,10 @@ export default function ReviewScreen() {
         })}
 
         <View style={styles.hero}>
-          <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+          {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
+          <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
+            <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+          </HoldToUndo>
         </View>
 
         <View style={styles.answerArea}>
