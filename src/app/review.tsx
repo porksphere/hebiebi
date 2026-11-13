@@ -4,6 +4,7 @@ import { router, Stack, useFocusEffect } from 'expo-router';
 import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
+  AccessibilityInfo,
   ActivityIndicator,
   Animated,
   KeyboardAvoidingView,
@@ -11,6 +12,7 @@ import {
   StyleSheet,
   Text,
   type TextInputInstance,
+  useWindowDimensions,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -22,7 +24,7 @@ import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
-import type { CheckResult } from '@/lib/review/answer-checker';
+import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -52,6 +54,7 @@ export default function ReviewScreen() {
   );
   const shake = useRef(new Animated.Value(0)).current;
   const headerHeight = useHeaderHeight();
+  const window = useWindowDimensions();
 
   // Opening this screen starts a session, or picks up the one that's minimised.
   const { start } = session;
@@ -130,6 +133,9 @@ export default function ReviewScreen() {
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      AccessibilityInfo.announceForAccessibility(
+        `Incorrect. ${correctAnswers(item.subject, question.type).join(', ')}`,
+      );
     }
   }
 
@@ -265,6 +271,8 @@ export default function ReviewScreen() {
   const typeName = TYPE_NAMES[item.subject.object];
   const partName = isReading ? 'Reading' : item.subject.object === 'radical' ? 'Name' : 'Meaning';
 
+  const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
+
   const inputBg = graded ? (graded.correct ? theme.correct : theme.incorrect) : theme.surface;
   const inputFg = graded ? '#FFFFFF' : theme.text;
 
@@ -283,10 +291,23 @@ export default function ReviewScreen() {
         })}
 
         <View style={styles.hero}>
-          {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
-          <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
-            <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
-          </HoldToUndo>
+          <View style={styles.heroStack}>
+            {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
+            <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
+              <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+            </HoldToUndo>
+            {/* After a miss, the right answer, big, right under the characters. Positioned out of
+                the layout so the characters and the answer area don't move. */}
+            {correction ? (
+              <Text
+                style={[styles.correction, { color: theme.text, width: window.width - spacing.md * 2 }]}
+                numberOfLines={2}
+                adjustsFontSizeToFit
+                accessibilityLanguage={isReading ? 'ja' : 'en'}>
+                {correction}
+              </Text>
+            ) : null}
+          </View>
         </View>
 
         <View style={styles.answerArea}>
@@ -360,6 +381,8 @@ const styles = StyleSheet.create({
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
 
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
+  heroStack: { alignItems: 'center' },
+  correction: { position: 'absolute', top: '100%', marginTop: spacing.sm, fontSize: 28, fontWeight: '600', textAlign: 'center' },
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
   label: { fontSize: 14, textAlign: 'center' },

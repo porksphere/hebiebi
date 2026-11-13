@@ -2,7 +2,7 @@
 import { describe, expect, test } from 'bun:test';
 
 import type { Subject } from '../wanikani/types';
-import { checkMeaning, checkReading, typoTolerance } from './answer-checker';
+import { checkMeaning, checkReading, correctAnswers, typoTolerance } from './answer-checker';
 import { answerCurrent, advance, createSession, makeItem, sessionStats, setWrappingUp } from './session';
 
 const base = {
@@ -193,5 +193,15 @@ describe('session', () => {
     const items = [makeItem(1, kanji(1, 5), 1), makeItem(2, kanji(2, 1), 1), makeItem(3, kanji(3, 3), 1)];
     const state = createSession(items, { order: 'lower_levels_first' });
     expect(state.active).toEqual([2, 3, 1]);
+  });
+});
+
+describe('correctAnswers', () => {
+  test('meanings: accepted only, primary first, no synonyms or whitelist extras', () => {
+    expect(correctAnswers(kanji(), 'meaning')).toEqual(['Person']);
+  });
+
+  test('readings: accepted only, primary first', () => {
+    expect(correctAnswers(kanji(), 'reading')).toEqual(['にん', 'じん']);
   });
 });

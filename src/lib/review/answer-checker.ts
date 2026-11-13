@@ -59,6 +59,21 @@ export function acceptedMeanings(subject: Subject, synonyms: string[] = []) {
   ];
 }
 
+/**
+ * The right answers to show after a miss: WaniKani's accepted meanings or readings, primary first,
+ * at most `limit`. (Not the user's synonyms or whitelisted extras: these are the ones to learn.)
+ */
+export function correctAnswers(subject: Subject, type: 'meaning' | 'reading', limit = 3): string[] {
+  const list =
+    type === 'meaning'
+      ? subject.data.meanings.filter((m) => m.accepted_answer).map((m) => ({ text: m.meaning, primary: m.primary }))
+      : readingsOf(subject)
+          .filter((r) => r.accepted_answer)
+          .map((r) => ({ text: r.reading, primary: r.primary }));
+  const ordered = list.sort((a, b) => Number(b.primary) - Number(a.primary)).map((x) => x.text);
+  return [...new Set(ordered)].slice(0, limit);
+}
+
 export function checkMeaning(subject: Subject, input: string, synonyms: string[] = []): CheckResult {
   const answer = normalizeMeaning(input);
   if (!answer) return { kind: 'retry', message: '' };
