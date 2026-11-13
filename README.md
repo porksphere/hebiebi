@@ -12,8 +12,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   allows tokens for third-party apps. Create one at
   <https://www.wanikani.com/settings/personal_access_tokens/new> with **reviews:create** ticked (and
   **user:update** if you want to change review settings from the app).
-- **Today**: available reviews, lessons, level progress (kanji passed against the 90% needed to
-  level up), a 24-hour review forecast, and item counts by SRS stage.
+- **Today**: the reviews that are ready, over a big faint kanji picked from them. Below it, your
+  level as a sheet of kanji practice paper: a square is empty until the kanji unlocks, grey while
+  you learn it and black once it's passed. One line covers what's next and any lessons.
 - **Reviews**, behaving like WaniKani's own:
   - Romaji is converted to kana as you type a reading.
   - Typos in meanings are tolerated in proportion to word length. Blacklisted meanings are wrong,

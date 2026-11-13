@@ -181,10 +181,6 @@ export function createClient(token: string) {
         hidden: false,
       }) as Promise<Resource<Assignment, 'assignment'>[]>,
 
-    /** One page is enough: only `total_count` is read. */
-    countAssignments: (query: Query) =>
-      request<Collection<unknown>>('GET', '/assignments', { query }).then((c) => c.total_count),
-
     getAssignments: (query: Query) =>
       getAll<Assignment>('/assignments', query) as Promise<Resource<Assignment, 'assignment'>[]>,
 

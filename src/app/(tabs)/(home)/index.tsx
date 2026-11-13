@@ -3,13 +3,12 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
-import { Forecast, LevelProgress, ReviewHero, SrsBreakdown, StatTile } from '@/components/dashboard';
+import { formatWhen, LevelPaper, ReviewHero, type Featured } from '@/components/dashboard';
 import { useClient } from '@/lib/auth';
-import { confirmEndSession } from '@/components/review/end-session';
 import { sessionStats } from '@/lib/review/session';
 import { flushReviews, pendingCount } from '@/lib/review/submissions';
 import { isInProgress, useReviewSession } from '@/lib/review/use-review-session';
-import { useLevelProgress, useSrsCounts, useSummary, useUser } from '@/lib/wanikani/queries';
+import { useLevelKanji, useSearchIndex, useSummary, useUser } from '@/lib/wanikani/queries';
 import { spacing, useTheme } from '@/theme';
 
 export default function TodayScreen() {
@@ -18,8 +17,10 @@ export default function TodayScreen() {
   const queryClient = useQueryClient();
   const user = useUser();
   const summary = useSummary();
-  const srs = useSrsCounts();
-  const level = useLevelProgress(user.data?.level);
+  const level = useLevelKanji(user.data?.level);
+  const index = useSearchIndex();
+  // Which kanji to feature: fixed while the screen is up, different the next time the app opens.
+  const [pick] = useState(() => Math.random());
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState(pendingCount);
   const session = useReviewSession();
@@ -53,8 +54,31 @@ export default function TodayScreen() {
     summary.data?.lessons
       .filter((l) => new Date(l.available_at) <= new Date())
       .reduce((n, l) => n + l.subject_ids.length, 0) ?? 0;
-  const maxLevel = user.data?.subscription.max_level_granted;
   const error = summary.error ?? user.error;
+
+  // One kanji from the reviews that are ready (or, with none ready, the ones coming up).
+  const reviewIds = new Set(
+    (reviewCount > 0 ? (now?.subject_ids ?? []) : (summary.data?.reviews.flatMap((r) => r.subject_ids) ?? [])),
+  );
+  const candidates = (index.data ?? []).filter((e) => e.type === 'kanji' && e.characters && reviewIds.has(e.id));
+  const entry = candidates.length ? candidates[Math.floor(pick * candidates.length)] : null;
+  const featured: Featured | null = entry
+    ? { id: entry.id, characters: entry.characters!, reading: entry.reading, meaning: entry.meaning }
+    : null;
+
+  // "Next: 8 at 2 PM · 61 in 24 hours · 12 lessons", leaving out whatever is zero.
+  const upcoming = (summary.data?.reviews ?? [])
+    .filter((r) => new Date(r.available_at) > new Date())
+    .slice(0, 24);
+  const next = upcoming.find((r) => r.subject_ids.length > 0);
+  const dayTotal = upcoming.reduce((n, r) => n + r.subject_ids.length, 0);
+  const footer = [
+    next
+      ? `Next: ${next.subject_ids.length} ${formatWhen(next.available_at).replace(':00', '')}`
+      : null,
+    dayTotal > (next?.subject_ids.length ?? 0) ? `${dayTotal} in 24 hours` : null,
+    lessonCount > 0 ? `${lessonCount} ${lessonCount === 1 ? 'lesson' : 'lessons'} on WaniKani` : null,
+  ].filter(Boolean);
 
   return (
     <ScrollView
@@ -94,42 +118,23 @@ export default function TodayScreen() {
               }
             : null
         }
-        onEndSession={() => confirmEndSession(session)}
+        featured={featured}
       />
 
-      <View style={styles.row}>
-        <StatTile
-          label="Lessons"
-          value={summary.data ? String(lessonCount) : '–'}
-          caption="Do these on WaniKani"
-        />
-        <StatTile
-          label="Level"
-          value={user.data ? String(user.data.level) : '–'}
-          caption={
-            user.data
-              ? user.data.subscription.active || maxLevel === 60
-                ? `of 60`
-                : `Free up to level ${maxLevel}`
-              : undefined
-          }
-        />
-      </View>
+      {user.data && level.data ? <LevelPaper level={user.data.level} {...level.data} /> : null}
 
-      {user.data && level.data ? (
-        <LevelProgress level={user.data.level} {...level.data} />
+      {footer.length ? (
+        <Text style={[styles.footer, { color: theme.textSecondary, borderTopColor: theme.border }]}>
+          {footer.join(' · ')}
+        </Text>
       ) : null}
-
-      {summary.data ? <Forecast summary={summary.data} /> : null}
-
-      {srs.data ? <SrsBreakdown counts={srs.data} /> : null}
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: spacing.md, gap: spacing.md, paddingBottom: 120 },
-  row: { flexDirection: 'row', gap: spacing.md },
+  content: { padding: spacing.md, gap: spacing.lg, paddingBottom: 120 },
+  footer: { fontSize: 13, borderTopWidth: StyleSheet.hairlineWidth, paddingTop: spacing.md - 4 },
   banner: { borderWidth: 1, borderRadius: 14, padding: spacing.md },
   bannerText: { fontSize: 15 },
   bannerDetail: { fontSize: 13, marginTop: spacing.xs },

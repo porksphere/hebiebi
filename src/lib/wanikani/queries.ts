@@ -1,7 +1,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useClient } from '../auth';
-import { PASSING_STAGE, SRS_GROUPS, type SrsGroup } from '../srs';
+import { PASSING_STAGE } from '../srs';
 import { getMnemonicImage, mayHaveMnemonicImage } from './mnemonic-image-cache';
 import { readCachedIndex, syncIndex } from './search-index-cache';
 import type { Subject, UserPreferences } from './types';
@@ -22,35 +22,39 @@ export function useSummary() {
   });
 }
 
-/** Items per SRS group, from `total_count` of one filtered request per group. */
-export function useSrsCounts() {
-  const client = useClient();
-  return useQuery({
-    queryKey: ['srs-counts'],
-    queryFn: async () => {
-      const counts = await Promise.all(
-        SRS_GROUPS.map((g) => client.countAssignments({ srs_stages: g.stages, hidden: false })),
-      );
-      return Object.fromEntries(SRS_GROUPS.map((g, i) => [g.key, counts[i]])) as Record<SrsGroup, number>;
-    },
-    staleTime: 10 * 60_000,
-  });
-}
+export type KanjiState = 'passed' | 'learning' | 'locked';
 
-/** Kanji passed at the user's current level: 90% of them is what levels you up. */
-export function useLevelProgress(level: number | undefined) {
+/**
+ * The kanji of the user's current level, in lesson order, each with how far along it is. Passing
+ * 90% of them is what levels you up. Seeds the per-subject cache, so tapping one opens at once.
+ */
+export function useLevelKanji(level: number | undefined) {
   const client = useClient();
+  const queryClient = useQueryClient();
   return useQuery({
-    queryKey: ['level-progress', level],
+    queryKey: ['level-kanji', level],
     enabled: level !== undefined,
     queryFn: async () => {
       const [subjects, assignments] = await Promise.all([
         client.getSubjectsByLevel(level!, ['kanji']),
         client.getAssignments({ levels: level!, subject_types: 'kanji', hidden: false }),
       ]);
-      const total = subjects.length;
-      const passed = assignments.filter((a) => a.data.passed_at || a.data.srs_stage >= PASSING_STAGE).length;
-      return { total, passed, required: Math.ceil(total * 0.9) };
+      const states = new Map<number, KanjiState>();
+      for (const { data: a } of assignments) {
+        if (!a.unlocked_at) continue;
+        // Once passed, always passed, even if it has since dropped back to Apprentice.
+        states.set(a.subject_id, a.passed_at || a.srs_stage >= PASSING_STAGE ? 'passed' : 'learning');
+      }
+      for (const s of subjects) queryClient.setQueryData(['subject', s.id], s);
+      const kanji = subjects
+        .sort((x, y) => x.data.lesson_position - y.data.lesson_position)
+        .map((subject) => ({ subject, state: states.get(subject.id) ?? ('locked' as KanjiState) }));
+      return {
+        kanji,
+        total: kanji.length,
+        passed: kanji.filter((k) => k.state === 'passed').length,
+        required: Math.ceil(kanji.length * 0.9),
+      };
     },
     staleTime: 10 * 60_000,
   });
