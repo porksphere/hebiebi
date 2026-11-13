@@ -11,13 +11,13 @@ import {
   ScrollView,
   StyleSheet,
   Text,
-  TextInput,
   type TextInputInstance,
   View,
 } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toKana } from 'wanakana';
 
+import { AnswerField } from '@/components/review/answer-field';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/review/subject-characters';
 import { SubjectInfo } from '@/components/review/subject-info';
@@ -238,38 +238,36 @@ export default function ReviewScreen() {
         <SubjectCharacters subject={item.subject} color={theme.text} size={showInfo ? 64 : 112} />
       </View>
 
-      <View
-        style={[
-          styles.prompt,
-          { backgroundColor: isReading ? theme.inverseBackground : theme.surfaceStrong },
-        ]}>
-        <Text style={[styles.promptText, { color: isReading ? theme.inverseText : theme.text }]}>
-          {typeName} <Text style={styles.promptStrong}>{partName}</Text>
-        </Text>
-      </View>
-
       <View style={styles.answerArea}>
+        {/* What's being asked. Readings get the filled label so the two are told apart at a glance. */}
+        <View
+          style={[
+            styles.label,
+            isReading
+              ? { backgroundColor: theme.inverseBackground, borderColor: theme.inverseBackground }
+              : { borderColor: theme.border },
+          ]}>
+          <Text style={[styles.labelText, { color: isReading ? theme.inverseText : theme.textSecondary }]}>
+            {typeName}{' '}
+            <Text style={[styles.labelStrong, { color: isReading ? theme.inverseText : theme.text }]}>{partName}</Text>
+          </Text>
+        </View>
+
         <Animated.View style={{ transform: [{ translateX: shake }] }}>
-          <View style={[styles.inputWrap, { backgroundColor: inputBg }]}>
-            <TextInput
-              ref={inputRef}
-              value={input}
-              onChangeText={onChangeText}
-              onSubmitEditing={onSubmit}
-              submitBehavior="submit"
-              autoFocus
-              autoCapitalize="none"
-              autoCorrect={false}
-              spellCheck={false}
-              autoComplete="off"
-              returnKeyType={graded ? 'next' : 'done'}
-              placeholder={isReading ? 'こたえ' : 'Your answer'}
-              placeholderTextColor={theme.textSecondary}
-              style={[styles.input, { color: inputFg }]}
-              textAlign="center"
-              accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
-            />
-          </View>
+          <AnswerField
+            inputRef={inputRef}
+            value={input}
+            onChangeText={onChangeText}
+            onSubmit={onSubmit}
+            kana={isReading}
+            readOnly={!!graded}
+            textColor={inputFg}
+            placeholderColor={theme.textSecondary}
+            backgroundColor={inputBg}
+            placeholder={isReading ? 'こたえ' : 'Your answer'}
+            returnKeyType={graded ? 'next' : 'done'}
+            accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
+          />
         </Animated.View>
 
         <View style={styles.feedback}>
@@ -326,13 +324,16 @@ const styles = StyleSheet.create({
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
   heroCompact: { flex: 0, paddingVertical: spacing.md },
 
-  prompt: { paddingVertical: 10, alignItems: 'center' },
-  promptText: { fontSize: 16 },
-  promptStrong: { fontWeight: '700' },
-
-  answerArea: { padding: spacing.md, gap: spacing.sm },
-  inputWrap: { borderRadius: 16 },
-  input: { fontSize: 24, paddingVertical: 14, paddingHorizontal: spacing.md, minHeight: 60 },
+  answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
+  label: {
+    alignSelf: 'center',
+    borderWidth: 1,
+    borderRadius: 999,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  labelText: { fontSize: 13, letterSpacing: 0.2 },
+  labelStrong: { fontWeight: '700' },
   feedback: { minHeight: 44, gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },
   actions: { flexDirection: 'row', gap: spacing.sm },
