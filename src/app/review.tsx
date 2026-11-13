@@ -1,11 +1,13 @@
 import { useQueryClient } from '@tanstack/react-query';
 import * as Haptics from 'expo-haptics';
 import { router, Stack, useFocusEffect } from 'expo-router';
+import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   Alert,
   Animated,
+  KeyboardAvoidingView,
   Pressable,
   StyleSheet,
   Text,
@@ -21,7 +23,6 @@ import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
-import { useKeyboardInset } from '@/lib/use-keyboard-inset';
 import type { SubjectType } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
 
@@ -43,7 +44,7 @@ export default function ReviewScreen() {
   const [input, setInput] = useState('');
   const [message, setMessage] = useState<string | null>(null);
   const shake = useRef(new Animated.Value(0)).current;
-  const keyboard = useKeyboardInset();
+  const headerHeight = useHeaderHeight();
 
   // Coming back from an item's page (a sheet over this screen): the field lost focus to it.
   useFocusEffect(
@@ -230,59 +231,56 @@ export default function ReviewScreen() {
   const inputFg = graded ? '#FFFFFF' : theme.text;
 
   return (
-    <View
-      ref={keyboard.ref}
-      onLayout={keyboard.onLayout}
-      style={[
-        styles.root,
-        {
-          backgroundColor: theme.background,
-          // Above the keyboard while it's up; above the home indicator when it isn't.
-          paddingBottom: keyboard.inset > 0 ? keyboard.inset : insets.bottom,
-        },
-      ]}>
-      {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, true)}
+    // The system keyboard avoidance. It measures itself against its parent, which starts below the
+    // native header, so the header's height goes in the offset. The home-indicator inset comes off
+    // it too, since the content inside already keeps clear of that.
+    <KeyboardAvoidingView
+      behavior="padding"
+      keyboardVerticalOffset={headerHeight - insets.bottom}
+      style={[styles.root, { backgroundColor: theme.background }]}>
+      <View style={[styles.root, { paddingBottom: insets.bottom }]}>
+        {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, true)}
 
-      <View style={styles.hero}>
-        <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
-      </View>
+        <View style={styles.hero}>
+          <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
+        </View>
 
-      <View style={styles.answerArea}>
-        {/* What's being asked, kept quiet: the type in grey, the part in the text colour. */}
-        <Text style={[styles.label, { color: theme.textSecondary }]}>
-          {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
-        </Text>
+        <View style={styles.answerArea}>
+          {/* What's being asked, kept quiet: the type in grey, the part in the text colour. */}
+          <Text style={[styles.label, { color: theme.textSecondary }]}>
+            {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
+          </Text>
 
-        <Animated.View style={{ transform: [{ translateX: shake }] }}>
-          <AnswerField
-            inputRef={inputRef}
-            value={input}
-            onChangeText={onChangeText}
-            onSubmit={onSubmit}
-            kana={isReading}
-            readOnly={!!graded}
-            textColor={inputFg}
-            placeholderColor={theme.textSecondary}
-            backgroundColor={inputBg}
-            placeholder={isReading ? 'こたえ' : 'Your answer'}
-            returnKeyType={graded ? 'next' : 'done'}
-            accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
-          />
-        </Animated.View>
+          <Animated.View style={{ transform: [{ translateX: shake }] }}>
+            <AnswerField
+              inputRef={inputRef}
+              value={input}
+              onChangeText={onChangeText}
+              onSubmit={onSubmit}
+              kana={isReading}
+              readOnly={!!graded}
+              textColor={inputFg}
+              placeholderColor={theme.textSecondary}
+              backgroundColor={inputBg}
+              placeholder={isReading ? 'こたえ' : 'Your answer'}
+              returnKeyType={graded ? 'next' : 'done'}
+              accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
+            />
+          </Animated.View>
 
-        <View style={styles.feedback}>
-          {message ? <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text> : null}
-          {graded ? (
-            <View style={styles.actions}>
-              <ActionButton label="Undo" onPress={undo} />
-              <ActionButton label="Item Info" onPress={openInfo} />
-              <ActionButton label="Next" onPress={goNext} primary />
-            </View>
-          ) : null}
+          <View style={styles.feedback}>
+            {message ? <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text> : null}
+            {graded ? (
+              <View style={styles.actions}>
+                <ActionButton label="Undo" onPress={undo} />
+                <ActionButton label="Item Info" onPress={openInfo} />
+                <ActionButton label="Next" onPress={goNext} primary />
+              </View>
+            ) : null}
+          </View>
         </View>
       </View>
-
-    </View>
+    </KeyboardAvoidingView>
   );
 }
 
@@ -319,5 +317,4 @@ const styles = StyleSheet.create({
   actions: { flexDirection: 'row', gap: spacing.sm },
   action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
   actionText: { fontSize: 15, fontWeight: '600' },
-
 });
