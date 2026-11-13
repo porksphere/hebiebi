@@ -1,5 +1,5 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useState } from 'react';
 
 import { useClient } from '../auth';
 import { useUser } from '../wanikani/queries';
@@ -10,7 +10,6 @@ import {
   createSession,
   makeItem,
   setWrappingUp,
-  skip,
   type ReviewItem,
   type SessionState,
 } from './session';
@@ -115,18 +114,9 @@ export function useReviewSession() {
     setPhase({ kind: 'answering' });
   }, [state, phase, sync]);
 
-  // These two are wired to native header menu items, which can hold on to the callback from an
-  // earlier render. So they read the CURRENT state (functional update, a ref for the phase) rather
-  // than closing over it: a stale closure here would restore an old session.
-  const phaseRef = useRef(phase);
-  useEffect(() => {
-    phaseRef.current = phase;
-  }, [phase]);
-
-  const skipQuestion = useCallback(() => {
-    if (phaseRef.current.kind === 'answering') setState((s) => (s ? skip(s) : s));
-  }, []);
-
+  // Wired to a native header button, which can hold on to the callback from an earlier render. So
+  // it reads the CURRENT state (a functional update) rather than closing over it: a stale closure
+  // here would restore an old session.
   const toggleWrapUp = useCallback(() => {
     setState((s) => (s ? setWrappingUp(s, !s.wrappingUp) : s));
   }, []);
@@ -140,7 +130,6 @@ export function useReviewSession() {
     phase,
     submit,
     next,
-    skipQuestion,
     toggleWrapUp,
     endingStages,
     unsent,

@@ -22,7 +22,7 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
     the other reading type of a kanji ("we're looking for the on'yomi"), a small-kana slip, or a
     verb missing its "to".
   - 10 items are in rotation, with meaning and reading asked in random order.
-  - Skip and wrap-up.
+  - Wrap-up: finish the 10 items in play, then stop.
   - Item info after answering, with mnemonics, hints, readings, audio and context sentences. Parts
     not yet asked stay hidden.
   - A summary at the end showing each item's new SRS stage.

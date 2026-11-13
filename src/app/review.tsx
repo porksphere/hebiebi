@@ -157,18 +157,13 @@ export default function ReviewScreen() {
       </Stack.Toolbar>
       {withMenu && state ? (
         <Stack.Toolbar placement="right">
-          <Stack.Toolbar.Menu icon="ellipsis" accessibilityLabel="Session options">
-            <Stack.Toolbar.MenuAction
-              icon="flag.checkered"
-              isOn={state.wrappingUp}
-              subtitle="Finish the items in play, then stop"
-              onPress={session.toggleWrapUp}>
-              Wrap Up
-            </Stack.Toolbar.MenuAction>
-            <Stack.Toolbar.MenuAction icon="forward" disabled={!!graded} onPress={session.skipQuestion}>
-              Skip Question
-            </Stack.Toolbar.MenuAction>
-          </Stack.Toolbar.Menu>
+          {/* Wrap up: finish the items in play, then stop. The title says so while it's on. */}
+          <Stack.Toolbar.Button
+            icon="flag.checkered"
+            selected={state.wrappingUp}
+            accessibilityLabel={state.wrappingUp ? 'Stop wrapping up' : 'Wrap up'}
+            onPress={session.toggleWrapUp}
+          />
         </Stack.Toolbar>
       ) : null}
     </>

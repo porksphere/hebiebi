@@ -156,11 +156,6 @@ export function advance(state: SessionState, rng: Rng = Math.random) {
   return nextQuestion(state, rng);
 }
 
-/** Moves on without answering; the question stays open and comes back later. */
-export function skip(state: SessionState, rng: Rng = Math.random) {
-  return nextQuestion(state, rng);
-}
-
 export function setWrappingUp(state: SessionState, wrappingUp: boolean): SessionState {
   if (wrappingUp) return { ...state, wrappingUp };
   // Leaving wrap-up refills play from the backlog.
