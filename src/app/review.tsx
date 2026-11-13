@@ -5,7 +5,6 @@ import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   Animated,
   KeyboardAvoidingView,
   Pressable,
@@ -21,6 +20,7 @@ import { AnswerField } from '@/components/review/answer-field';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
+import type { CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -41,10 +41,19 @@ export default function ReviewScreen() {
   const { state, phase } = session;
 
   const inputRef = useRef<TextInputInstance>(null);
-  const [input, setInput] = useState('');
-  const [message, setMessage] = useState<string | null>(null);
+  // Coming back to a minimised session that was showing a result: show it again.
+  const [input, setInput] = useState(() =>
+    phase.kind === 'graded' ? displayedAnswer(phase.answer, state?.current?.type) : '',
+  );
+  const [message, setMessage] = useState<string | null>(() =>
+    phase.kind === 'graded' ? closeEnough(phase.result) : null,
+  );
   const shake = useRef(new Animated.Value(0)).current;
   const headerHeight = useHeaderHeight();
+
+  // Opening this screen starts a session, or picks up the one that's minimised.
+  const { start } = session;
+  useEffect(() => start(), [start]);
 
   // Coming back from an item's page (a sheet over this screen): the field lost focus to it.
   useFocusEffect(
@@ -66,6 +75,21 @@ export default function ReviewScreen() {
   const item = question && state ? state.items[question.assignmentId] : null;
   const graded = phase.kind === 'graded' ? phase : null;
   const finished = !!state && !question;
+
+  // A session with nothing left to resume (finished, empty, failed to load) ends when this screen
+  // goes, not before, so the summary stays put while the screen slides away.
+  const spent = finished || session.empty || !!session.error;
+  const spentRef = useRef(spent);
+  useEffect(() => {
+    spentRef.current = spent;
+  }, [spent]);
+  const { end } = session;
+  useEffect(
+    () => () => {
+      if (spentRef.current) end();
+    },
+    [end],
+  );
 
   function runShake() {
     shake.setValue(0);
@@ -92,17 +116,16 @@ export default function ReviewScreen() {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Warning);
       return;
     }
-    if (question.type === 'reading') setInput(toKana(input.trim()));
+    setInput(displayedAnswer(input, question.type));
+    setMessage(closeEnough(result));
     if (result.kind === 'correct') {
       Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
-      setMessage(result.exact ? null : `Close enough — it’s “${result.matched}”.`);
       if (question.type === 'reading' && session.autoplayAudio) {
         const audio = pronunciations(item.subject)[0];
         if (audio) playAudio(audio.url);
       }
     } else {
       Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
-      setMessage(null);
     }
   }
 
@@ -129,20 +152,17 @@ export default function ReviewScreen() {
     });
   }
 
-  function close() {
-    const started = state && Object.values(state.items).some(
-      (i) => !state.completed.includes(i.assignmentId) && (i.incorrectMeaning || i.incorrectReading || (i.meaningDone && !i.readingDone) || (!i.meaningDone && i.readingDone)),
-    );
-    if (!started) return router.back();
-    Alert.alert('End this session?', 'Finished items are already saved. Items you’ve only partly answered will come back next time.', [
-      { text: 'Keep Going', style: 'cancel' },
-      { text: 'End Session', style: 'destructive', onPress: () => router.back() },
-    ]);
+  /**
+   * Closes the screen. Mid-session that's minimising: the session carries on from the home screen
+   * or the tab bar. One with nothing left in it is ended once the screen has gone (below).
+   */
+  function dismiss() {
+    router.back();
   }
 
   // --- Non-question states ----------------------------------------------------------------------
 
-  const header = (title: string, withMenu = false) => (
+  const header = (title: string, { leading, wrapUp = false }: { leading?: 'minimize' | 'close'; wrapUp?: boolean } = {}) => (
     <>
       <Stack.Screen
         options={{
@@ -152,10 +172,16 @@ export default function ReviewScreen() {
           headerTintColor: theme.text,
         }}
       />
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close" onPress={close} />
-      </Stack.Toolbar>
-      {withMenu && state ? (
+      {leading ? (
+        <Stack.Toolbar placement="left">
+          {leading === 'minimize' ? (
+            <Stack.Toolbar.Button icon="chevron.down" accessibilityLabel="Minimize" onPress={dismiss} />
+          ) : (
+            <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close" onPress={dismiss} />
+          )}
+        </Stack.Toolbar>
+      ) : null}
+      {wrapUp && state ? (
         <Stack.Toolbar placement="right">
           {/* Wrap up: finish the items in play, then stop. The title says so while it's on. */}
           <Stack.Toolbar.Button
@@ -172,7 +198,7 @@ export default function ReviewScreen() {
   if (session.loading || session.error || session.empty) {
     return (
       <View style={[styles.center, { backgroundColor: theme.background }]}>
-        {header('Reviews')}
+        {header('Reviews', { leading: session.loading ? 'minimize' : 'close' })}
         {session.loading ? (
           <>
             <ActivityIndicator color={theme.textSecondary} />
@@ -195,13 +221,14 @@ export default function ReviewScreen() {
   if (finished && state) {
     return (
       <>
+        {/* No way out but Done: the session is over, there's nothing to minimise. */}
         {header('Session Complete')}
         <SessionSummary
           state={state}
           endingStages={session.endingStages}
           unsent={session.unsent}
           onRetrySync={session.sync}
-          onDone={() => router.back()}
+          onDone={dismiss}
         />
       </>
     );
@@ -228,7 +255,10 @@ export default function ReviewScreen() {
       keyboardVerticalOffset={headerHeight - insets.bottom}
       style={[styles.root, { backgroundColor: theme.background }]}>
       <View style={[styles.root, { paddingBottom: insets.bottom }]}>
-        {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, true)}
+        {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, {
+          leading: 'minimize',
+          wrapUp: true,
+        })}
 
         <View style={styles.hero}>
           <SubjectCharacters subject={item.subject} color={theme.text} size={112} />
@@ -270,6 +300,15 @@ export default function ReviewScreen() {
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+/** Readings show as kana once graded, even if the last syllable was still romaji. */
+function displayedAnswer(answer: string, type: 'meaning' | 'reading' | undefined) {
+  return type === 'reading' ? toKana(answer.trim()) : answer;
+}
+
+function closeEnough(result: CheckResult) {
+  return result.kind === 'correct' && !result.exact ? `Close enough — it’s “${result.matched}”.` : null;
 }
 
 function ActionButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {

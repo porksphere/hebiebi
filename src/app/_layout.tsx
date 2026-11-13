@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { ReviewSessionProvider } from '@/lib/review/use-review-session';
 import { WaniKaniError } from '@/lib/wanikani/client';
 import { useTheme } from '@/theme';
 
@@ -71,21 +72,23 @@ function RootNavigator() {
 
   return (
     <ThemeProvider value={navTheme}>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Protected guard={signedIn}>
-          <Stack.Screen name="(tabs)" />
-          <Stack.Screen
-            name="review"
-            // headerShown is set here, not from the screen: toggling a modal's header after it
-            // mounts makes react-native-screens remount it and lose the session's state.
-            options={{ presentation: 'fullScreenModal', gestureEnabled: false, headerShown: true, title: 'Reviews' }}
-          />
-          <Stack.Screen name="subject" options={{ presentation: 'modal' }} />
-        </Stack.Protected>
-        <Stack.Protected guard={!signedIn}>
-          <Stack.Screen name="sign-in" />
-        </Stack.Protected>
-      </Stack>
+      <ReviewSessionProvider>
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Protected guard={signedIn}>
+            <Stack.Screen name="(tabs)" />
+            <Stack.Screen
+              name="review"
+              // headerShown is set here, not from the screen: toggling a modal's header after it
+              // mounts makes react-native-screens remount it and lose the session's state.
+              options={{ presentation: 'fullScreenModal', gestureEnabled: false, headerShown: true, title: 'Reviews' }}
+            />
+            <Stack.Screen name="subject" options={{ presentation: 'modal' }} />
+          </Stack.Protected>
+          <Stack.Protected guard={!signedIn}>
+            <Stack.Screen name="sign-in" />
+          </Stack.Protected>
+        </Stack>
+      </ReviewSessionProvider>
     </ThemeProvider>
   );
 }

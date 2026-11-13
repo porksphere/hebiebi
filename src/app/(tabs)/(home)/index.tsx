@@ -5,7 +5,10 @@ import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'r
 
 import { Forecast, LevelProgress, ReviewHero, SrsBreakdown, StatTile } from '@/components/dashboard';
 import { useClient } from '@/lib/auth';
+import { confirmEndSession } from '@/components/review/end-session';
+import { sessionStats } from '@/lib/review/session';
 import { flushReviews, pendingCount } from '@/lib/review/submissions';
+import { isInProgress, useReviewSession } from '@/lib/review/use-review-session';
 import { useLevelProgress, useSrsCounts, useSummary, useUser } from '@/lib/wanikani/queries';
 import { spacing, useTheme } from '@/theme';
 
@@ -19,6 +22,8 @@ export default function TodayScreen() {
   const level = useLevelProgress(user.data?.level);
   const [refreshing, setRefreshing] = useState(false);
   const [pending, setPending] = useState(pendingCount);
+  const session = useReviewSession();
+  const stats = session.state ? sessionStats(session.state) : null;
 
   const sync = useCallback(async () => {
     if (pendingCount() === 0) return;
@@ -78,6 +83,17 @@ export default function TodayScreen() {
         nextReviewsAt={summary.data?.next_reviews_at ?? null}
         loading={summary.isPending}
         onStart={() => router.push('/review')}
+        session={
+          isInProgress(session)
+            ? {
+                completed: stats?.completed ?? null,
+                total: stats?.total ?? null,
+                remaining: stats?.remaining ?? null,
+                wrappingUp: session.state?.wrappingUp ?? false,
+              }
+            : null
+        }
+        onEndSession={() => confirmEndSession(session)}
       />
 
       <View style={styles.row}>

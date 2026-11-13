@@ -51,7 +51,8 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
 - `src/lib/review/` holds the review engine, as pure functions with unit tests (`bun test`).
   `answer-checker.ts` grades answers; `session.ts` is the queue; `submissions.ts` persists reviews
   until WaniKani accepts them. Post exactly one review per item, once all of its parts are right,
-  with the incorrect counts added up.
+  with the incorrect counts added up. `use-review-session.tsx` holds the live session in a
+  provider above the navigator, so closing the review screen minimises it rather than ending it.
 - UI: native chrome (NativeTabs, the native Stack header and `Stack.Toolbar`) plus `@expo/ui`
   universal components for forms, which are SwiftUI on iOS and Compose on Android. The review
   screen is custom RN. The theme is monochrome (`src/theme`); the only hues are the

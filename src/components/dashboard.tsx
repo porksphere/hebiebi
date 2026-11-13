@@ -6,34 +6,64 @@ import { spacing, useTheme } from '@/theme';
 
 // --- Review hero ------------------------------------------------------------------------------
 
+/** A session that's been minimised: how far along it is. `null` counts while it's still loading. */
+export interface SessionProgress {
+  completed: number | null;
+  total: number | null;
+  /** Still to answer: the items in play, plus the backlog unless wrapping up. */
+  remaining: number | null;
+  wrappingUp: boolean;
+}
+
 export function ReviewHero({
   count,
   nextReviewsAt,
   onStart,
   loading,
+  session,
+  onEndSession,
 }: {
   count: number;
   nextReviewsAt: string | null;
   onStart: () => void;
   loading?: boolean;
+  /** Set while a session is minimised: the card offers to resume it instead of starting one. */
+  session?: SessionProgress | null;
+  onEndSession?: () => void;
 }) {
   const theme = useTheme();
-  const has = count > 0;
+  const has = count > 0 || !!session;
+
+  let value: string;
+  let caption: string;
+  if (session) {
+    value = session.remaining === null ? '–' : String(session.remaining);
+    caption =
+      session.total === null
+        ? 'Getting your reviews…'
+        : session.wrappingUp
+          ? 'left · wrapping up'
+          : `left · ${session.completed} of ${session.total} done`;
+  } else {
+    value = loading ? '–' : String(count);
+    caption = loading
+      ? 'Checking WaniKani…'
+      : count > 0
+        ? count === 1
+          ? 'item is waiting for you'
+          : 'items are waiting for you'
+        : nextReviewsAt
+          ? `Next reviews ${formatWhen(nextReviewsAt)}`
+          : 'Nothing scheduled';
+  }
+
   return (
     <View style={[styles.hero, { backgroundColor: theme.inverseBackground }]}>
-      <Text style={[styles.heroLabel, { color: theme.inverseText }]}>Reviews</Text>
-      <Text style={[styles.heroCount, { color: theme.inverseText }]}>{loading ? '–' : count}</Text>
-      <Text style={[styles.heroCaption, { color: theme.inverseText }]}>
-        {loading
-          ? 'Checking WaniKani…'
-          : has
-            ? count === 1
-              ? 'item is waiting for you'
-              : 'items are waiting for you'
-            : nextReviewsAt
-              ? `Next reviews ${formatWhen(nextReviewsAt)}`
-              : 'Nothing scheduled'}
+      <Text style={[styles.heroLabel, { color: theme.inverseText }]}>
+        {session ? 'Reviews · In progress' : 'Reviews'}
       </Text>
+      <Text style={[styles.heroCount, { color: theme.inverseText }]}>{value}</Text>
+      <Text style={[styles.heroCaption, { color: theme.inverseText }]}>{caption}</Text>
       <Pressable
         accessibilityRole="button"
         disabled={!has}
@@ -42,8 +72,17 @@ export function ReviewHero({
           styles.heroButton,
           { backgroundColor: theme.background, opacity: !has ? 0.35 : pressed ? 0.75 : 1 },
         ]}>
-        <Text style={[styles.heroButtonText, { color: theme.text }]}>Start Reviews</Text>
+        <Text style={[styles.heroButtonText, { color: theme.text }]}>{session ? 'Resume' : 'Start Reviews'}</Text>
       </Pressable>
+      {session && onEndSession ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onEndSession}
+          hitSlop={8}
+          style={({ pressed }) => [styles.heroSecondary, { opacity: pressed ? 0.4 : 0.7 }]}>
+          <Text style={[styles.heroSecondaryText, { color: theme.inverseText }]}>End Session</Text>
+        </Pressable>
+      ) : null}
     </View>
   );
 }
@@ -194,6 +233,8 @@ const styles = StyleSheet.create({
   heroCaption: { fontSize: 15, opacity: 0.7, marginBottom: spacing.md },
   heroButton: { borderRadius: 999, paddingVertical: 15, alignItems: 'center' },
   heroButtonText: { fontSize: 17, fontWeight: '600' },
+  heroSecondary: { alignSelf: 'center', marginTop: spacing.md, marginBottom: -spacing.xs },
+  heroSecondaryText: { fontSize: 15, fontWeight: '500' },
 
   tile: { flex: 1, borderRadius: 20, padding: spacing.md, gap: 2 },
   tileLabel: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.6 },

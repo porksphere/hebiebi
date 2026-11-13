@@ -23,6 +23,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
     verb missing its "to".
   - 10 items are in rotation, with meaning and reading asked in random order.
   - Wrap-up: finish the 10 items in play, then stop.
+  - Minimise a session to look around the app. It waits on the Today screen and, on iOS 26, in a
+    bar above the tabs; end it from either.
+  - Review order (shuffled or lower levels first) is read fresh from your account for each session.
   - Item info after answering, with mnemonics, hints, readings, audio and context sentences. Parts
     not yet asked stay hidden.
   - A summary at the end showing each item's new SRS stage.
