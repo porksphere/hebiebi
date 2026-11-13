@@ -431,7 +431,7 @@ const styles = StyleSheet.create({
   correction: { position: 'absolute', top: '100%', marginTop: spacing.sm, fontSize: 28, fontWeight: '600', textAlign: 'center' },
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
-  label: { fontSize: 14, textAlign: 'center' },
+  label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },
   labelPart: { fontWeight: '600' },
   feedback: { minHeight: 44, gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },
