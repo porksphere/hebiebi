@@ -55,7 +55,9 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   provider above the navigator, so closing the review screen minimises it rather than ending it.
 - UI: native chrome (NativeTabs, the native Stack header and `Stack.Toolbar`) plus `@expo/ui`
   universal components for forms, which are SwiftUI on iOS and Compose on Android. The review
-  screen is custom RN. The theme is monochrome (`src/theme`); the only hues are the
-  correct/incorrect answer states.
+  screen is custom RN. The theme is monochrome (`src/theme`). The only hues are the
+  correct/incorrect answer states and, off the review screen only, WaniKani's item-type colours
+  (`TYPE_COLORS`) as small dots and tints. Meaning vs reading is shown in black and white: readings
+  get the inverted answer field.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.

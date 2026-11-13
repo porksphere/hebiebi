@@ -1,9 +1,11 @@
 import { StyleSheet, Text, type TextStyle } from 'react-native';
 
-import { useTheme } from '@/theme';
+import { TYPE_COLORS, useTheme } from '@/theme';
 
 // WaniKani mnemonics and hints carry light markup: <radical>, <kanji>, <vocabulary>, <meaning>,
-// <reading>, <ja>. Subject tags get a highlight; meaning/reading are emphasised.
+// <reading>, <ja>. Subject tags get a tint of their type's WaniKani colour, as on the website
+// (behind the text, which keeps the normal colour so it stays readable); meaning/reading are
+// emphasised.
 const TAG = /<(radical|kanji|vocabulary|meaning|reading|ja)>([\s\S]*?)<\/\1>/g;
 
 export function Markup({ text, style }: { text: string; style?: TextStyle }) {
@@ -17,7 +19,13 @@ export function Markup({ text, style }: { text: string; style?: TextStyle }) {
     const key = `${index}-${tag}`;
     if (tag === 'radical' || tag === 'kanji' || tag === 'vocabulary') {
       parts.push(
-        <Text key={key} style={[styles.subject, { backgroundColor: theme.surfaceStrong, color: theme.text }]}>
+        <Text
+          key={key}
+          style={[
+            styles.subject,
+            // Hex alpha: ~20% in light mode, ~33% on black, where a faint tint disappears.
+            { backgroundColor: `${TYPE_COLORS[tag]}${theme.scheme === 'dark' ? '55' : '33'}`, color: theme.text },
+          ]}>
           {` ${inner} `}
         </Text>,
       );

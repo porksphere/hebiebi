@@ -5,12 +5,13 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { playAudio, pronunciations } from '@/lib/audio';
 import { stageName } from '@/lib/srs';
 import { useMnemonicImage, useSubjectProgress, useSubjects } from '@/lib/wanikani/queries';
-import type { AnySubjectData, Reading, Subject } from '@/lib/wanikani/types';
+import type { AnySubjectData, Reading, Subject, SubjectType } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
 
 import { Markup } from './markup';
 import { SubjectCharacters } from './subject-characters';
 import { SubjectTileGrid } from './subject-tile';
+import { TypeDot } from './type-dot';
 
 export type HiddenPart = 'meaning' | 'reading' | undefined;
 
@@ -52,30 +53,35 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
             {showReading ? primaryReading : '···'}
           </Text>
         ) : null}
-        <Text style={[styles.heroMeta, { color: theme.textSecondary }]}>
-          Level {data.level}
-          {assignment?.started_at ? ` · ${stageName(assignment.srs_stage)}` : ''}
-        </Text>
+        <View style={styles.heroMetaRow}>
+          <TypeDot type={subject.object} />
+          <Text style={[styles.heroMeta, { color: theme.textSecondary }]}>
+            Level {data.level}
+            {assignment?.started_at ? ` · ${stageName(assignment.srs_stage)}` : ''}
+          </Text>
+        </View>
       </View>
 
       {showMeaning ? <MeaningSection subject={subject} synonyms={progress.data?.material?.meaning_synonyms ?? []} /> : null}
       {showReading && readings.length ? <ReadingSection subject={subject} /> : null}
 
       {componentIds.length ? (
-        <Section title={subject.object === 'kanji' ? 'Radicals' : 'Kanji'}>
+        <Section title={subject.object === 'kanji' ? 'Radicals' : 'Kanji'} type={subject.object === 'kanji' ? 'radical' : 'kanji'}>
           {components.data ? <SubjectTileGrid subjects={components.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
       {/* Hidden mid-review: what a subject appears in (and their meanings) can give it away. */}
       {usedInIds.length && !hide ? (
-        <Section title={subject.object === 'radical' ? 'Found in kanji' : 'Found in vocabulary'}>
+        <Section
+          title={subject.object === 'radical' ? 'Found in kanji' : 'Found in vocabulary'}
+          type={subject.object === 'radical' ? 'kanji' : 'vocabulary'}>
           {usedIn.data ? <SubjectTileGrid subjects={usedIn.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
       {similarIds.length && !hide ? (
-        <Section title="Looks like">
+        <Section title="Looks like" type="kanji">
           {similar.data ? <SubjectTileGrid subjects={similar.data} /> : <Placeholder />}
         </Section>
       ) : null}
@@ -237,11 +243,15 @@ function MnemonicIllustration({ subject }: { subject: Subject }) {
   );
 }
 
-function Section({ title, children }: { title: string; children: React.ReactNode }) {
+/** `type`: the section lists items of one type, so its title gets that type's dot. */
+function Section({ title, type, children }: { title: string; type?: SubjectType; children: React.ReactNode }) {
   const theme = useTheme();
   return (
     <View style={styles.section}>
-      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
+      <View style={styles.sectionHead}>
+        {type ? <TypeDot type={type} /> : null}
+        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
+      </View>
       {children}
     </View>
   );
@@ -267,8 +277,10 @@ const styles = StyleSheet.create({
   hero: { alignItems: 'center', gap: 2, paddingTop: spacing.sm },
   heroMeaning: { fontSize: 24, fontWeight: '600', marginTop: spacing.sm },
   heroReading: { fontSize: 18 },
-  heroMeta: { fontSize: 13, marginTop: spacing.xs },
+  heroMetaRow: { flexDirection: 'row', alignItems: 'center', gap: 6, marginTop: spacing.xs },
+  heroMeta: { fontSize: 13 },
   section: { gap: spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
   body: { fontSize: 16, lineHeight: 24 },
   secondary: { fontSize: 15 },

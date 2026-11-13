@@ -296,8 +296,23 @@ export default function ReviewScreen() {
 
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
-  const inputBg = graded ? (graded.correct ? theme.correct : theme.incorrect) : theme.surface;
-  const inputFg = graded ? '#FFFFFF' : theme.text;
+  // WaniKani's cue for what to type, kept in black and white: meanings get the light field,
+  // readings the inverted one (black in light mode, white in dark), so "English or kana?" is
+  // answered at a glance. Graded, it's green or red either way.
+  const inverted = isReading && !graded;
+  const inputBg = graded
+    ? graded.correct
+      ? theme.correct
+      : theme.incorrect
+    : inverted
+      ? theme.inverseBackground
+      : theme.surface;
+  const inputFg = graded ? '#FFFFFF' : inverted ? theme.inverseText : theme.text;
+  const placeholderFg = inverted
+    ? theme.scheme === 'dark'
+      ? 'rgba(0,0,0,0.45)'
+      : 'rgba(255,255,255,0.5)'
+    : theme.textSecondary;
 
   return (
     // The system keyboard avoidance. It measures itself against its parent, which starts below the
@@ -359,7 +374,7 @@ export default function ReviewScreen() {
               kana={isReading}
               readOnly={!!graded}
               textColor={inputFg}
-              placeholderColor={theme.textSecondary}
+              placeholderColor={placeholderFg}
               backgroundColor={inputBg}
               placeholder={isReading ? 'こたえ' : 'Your answer'}
               returnKeyType={graded ? 'next' : 'done'}

@@ -3,6 +3,7 @@ import { useDeferredValue, useMemo, useState, type ReactNode } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Glyph } from '@/components/subject/subject-characters';
+import { TypeDot } from '@/components/subject/type-dot';
 import { searchSubjects, type SearchEntry } from '@/lib/wanikani/search-index';
 import { useSearchIndex } from '@/lib/wanikani/queries';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -88,9 +89,12 @@ function ResultRow({ entry }: { entry: SearchEntry }) {
         <Text style={[styles.meaning, { color: theme.text }]} numberOfLines={1}>
           {entry.meaning}
         </Text>
-        <Text style={[styles.detail, { color: theme.textSecondary }]} numberOfLines={1}>
-          {detail}
-        </Text>
+        <View style={styles.detailRow}>
+          <TypeDot type={entry.type} />
+          <Text style={[styles.detail, { color: theme.textSecondary }]} numberOfLines={1}>
+            {detail}
+          </Text>
+        </View>
       </View>
       <Text style={[styles.level, { color: theme.textSecondary }]}>{entry.level}</Text>
     </Pressable>
@@ -105,7 +109,8 @@ const styles = StyleSheet.create({
   glyph: { minWidth: 52, height: 52, borderRadius: 12, paddingHorizontal: 6, alignItems: 'center', justifyContent: 'center' },
   text: { flex: 1, gap: 2 },
   meaning: { fontSize: 17 },
-  detail: { fontSize: 14 },
+  detailRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  detail: { fontSize: 14, flexShrink: 1 },
   level: { fontSize: 15, fontVariant: ['tabular-nums'] },
   separator: { height: StyleSheet.hairlineWidth, marginLeft: spacing.md + 52 + spacing.md },
 });

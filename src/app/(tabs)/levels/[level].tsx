@@ -2,6 +2,7 @@ import { Stack, useLocalSearchParams } from 'expo-router';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { SubjectTileGrid } from '@/components/subject/subject-tile';
+import { TypeDot } from '@/components/subject/type-dot';
 import { useLevelStages, useLevelSubjects } from '@/lib/wanikani/queries';
 import type { Subject } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
@@ -32,9 +33,12 @@ export default function LevelScreen() {
             if (!items.length) return null;
             return (
               <View key={title} style={styles.section}>
-                <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
-                  {title} · {items.length}
-                </Text>
+                <View style={styles.sectionHead}>
+                  <TypeDot type={types[0]} />
+                  <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>
+                    {title} · {items.length}
+                  </Text>
+                </View>
                 <SubjectTileGrid
                   subjects={items}
                   // Until your progress loads, nothing is faded rather than everything.
@@ -63,6 +67,7 @@ export default function LevelScreen() {
 const styles = StyleSheet.create({
   content: { padding: spacing.md, gap: spacing.lg, paddingBottom: 120 },
   section: { gap: spacing.sm },
+  sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
   center: { paddingTop: 120, alignItems: 'center', gap: spacing.md },
   centerText: { fontSize: 17, textAlign: 'center' },
