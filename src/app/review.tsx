@@ -311,8 +311,12 @@ export default function ReviewScreen() {
         </View>
 
         <View style={styles.answerArea}>
-          {/* What's being asked, kept quiet: the type in grey, the part in the text colour. */}
-          <Text style={[styles.label, { color: theme.textSecondary }]}>
+          {/* What's being asked, kept quiet: the type in grey, the part in the text colour. Hidden
+              (but still taking its space, so nothing moves) while the right answer is showing,
+              which can reach down over it. */}
+          <Text
+            style={[styles.label, { color: theme.textSecondary, opacity: correction ? 0 : 1 }]}
+            accessibilityElementsHidden={!!correction}>
             {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
           </Text>
 
