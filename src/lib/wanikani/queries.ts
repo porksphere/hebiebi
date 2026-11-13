@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useClient } from '../auth';
 import { PASSING_STAGE, SRS_GROUPS, type SrsGroup } from '../srs';
+import { getMnemonicImage, mayHaveMnemonicImage } from './mnemonic-image-cache';
 import type { Subject, UserPreferences } from './types';
 
 export function useUser() {
@@ -125,5 +126,16 @@ export function useSubjectProgress(id: number) {
         material: materials[0]?.data ?? null,
       };
     },
+  });
+}
+
+/** A radical's illustration, from its public WaniKani page (see mnemonic-image-cache.ts). */
+export function useMnemonicImage(subject: Subject) {
+  return useQuery({
+    queryKey: ['mnemonic-image', subject.id],
+    enabled: mayHaveMnemonicImage(subject),
+    queryFn: () => getMnemonicImage(subject),
+    staleTime: Infinity,
+    retry: false,
   });
 }

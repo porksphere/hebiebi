@@ -1,9 +1,10 @@
+import { Image } from 'expo-image';
 import * as WebBrowser from 'expo-web-browser';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { playAudio, pronunciations } from '@/lib/audio';
 import { stageName } from '@/lib/srs';
-import { useSubjectProgress, useSubjects } from '@/lib/wanikani/queries';
+import { useMnemonicImage, useSubjectProgress, useSubjects } from '@/lib/wanikani/queries';
 import type { AnySubjectData, Reading, Subject } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
 
@@ -131,6 +132,7 @@ function MeaningSection({ subject, synonyms }: { subject: Subject; synonyms: str
         <Text style={[styles.secondary, { color: theme.textSecondary }]}>{data.parts_of_speech.join(' · ')}</Text>
       ) : null}
       <Markup text={data.meaning_mnemonic} />
+      <MnemonicIllustration subject={subject} />
       {data.meaning_hint ? <Hint text={data.meaning_hint} /> : null}
     </Section>
   );
@@ -212,6 +214,29 @@ function ProgressSection({ progress }: { progress: NonNullable<ReturnType<typeof
   );
 }
 
+/** A radical's illustration, after its mnemonic as on WaniKani. Renders nothing until it's known. */
+function MnemonicIllustration({ subject }: { subject: Subject }) {
+  const theme = useTheme();
+  const { data: image } = useMnemonicImage(subject);
+  if (!image) return null;
+  return (
+    <View
+      // The art is grey line work drawn for a white page, so it keeps a light card in dark mode.
+      style={[styles.illustration, { backgroundColor: theme.scheme === 'dark' ? '#ECECEC' : theme.surface }]}
+      accessible
+      accessibilityRole="image"
+      accessibilityLabel={image.description}>
+      <Image
+        source={{ uri: image.url }}
+        style={{ width: '100%', aspectRatio: image.aspectRatio }}
+        contentFit="contain"
+        cachePolicy="disk"
+        transition={150}
+      />
+    </View>
+  );
+}
+
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   const theme = useTheme();
   return (
@@ -259,5 +284,6 @@ const styles = StyleSheet.create({
   sentenceJa: { fontSize: 17, lineHeight: 26 },
   progressRow: { flexDirection: 'row', justifyContent: 'space-between' },
   placeholder: { height: 76, borderRadius: 14 },
+  illustration: { borderRadius: 16, padding: spacing.md, alignSelf: 'center', width: '80%', maxWidth: 320 },
   link: { fontSize: 15, fontWeight: '500' },
 });
