@@ -2,6 +2,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 
 import { useClient } from '../auth';
 import { PASSING_STAGE } from '../srs';
+import type { PaperState } from '@/components/paper';
 import { getMnemonicImage, mayHaveMnemonicImage } from './mnemonic-image-cache';
 import { readCachedIndex, syncIndex } from './search-index-cache';
 import type { Subject, UserPreferences } from './types';
@@ -22,8 +23,6 @@ export function useSummary() {
   });
 }
 
-export type KanjiState = 'passed' | 'learning' | 'locked';
-
 /**
  * The kanji of the user's current level, in lesson order, each with how far along it is. Passing
  * 90% of them is what levels you up. Seeds the per-subject cache, so tapping one opens at once.
@@ -39,7 +38,7 @@ export function useLevelKanji(level: number | undefined) {
         client.getSubjectsByLevel(level!, ['kanji']),
         client.getAssignments({ levels: level!, subject_types: 'kanji', hidden: false }),
       ]);
-      const states = new Map<number, KanjiState>();
+      const states = new Map<number, PaperState>();
       for (const { data: a } of assignments) {
         if (!a.unlocked_at) continue;
         // Once passed, always passed, even if it has since dropped back to Apprentice.
@@ -48,7 +47,7 @@ export function useLevelKanji(level: number | undefined) {
       for (const s of subjects) queryClient.setQueryData(['subject', s.id], s);
       const kanji = subjects
         .sort((x, y) => x.data.lesson_position - y.data.lesson_position)
-        .map((subject) => ({ subject, state: states.get(subject.id) ?? ('locked' as KanjiState) }));
+        .map((subject) => ({ subject, state: states.get(subject.id) ?? ('locked' as PaperState) }));
       return {
         kanji,
         total: kanji.length,

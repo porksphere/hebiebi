@@ -55,7 +55,8 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   provider above the navigator, so closing the review screen minimises it rather than ending it.
 - UI: native chrome (NativeTabs, the native Stack header and `Stack.Toolbar`) plus `@expo/ui`
   universal components for forms, which are SwiftUI on iOS and Compose on Android. The review
-  screen is custom RN. The theme is monochrome (`src/theme`). The only hues are the
+  screen is custom RN. The theme is monochrome (`src/theme`), light or dark by the phone or by the choice in Settings
+  (`src/lib/appearance.ts`). Today and Levels share a practice-paper look (`src/components/paper.tsx`). The only hues are the
   correct/incorrect answer states and WaniKani's item-type colours (`TYPE_COLORS`): small dots and
   tints where you browse, and the review answer field before grading (a faint tint for a meaning,
   a stronger one for a reading, WaniKani's light/dark cue). Tints, via `typeTint`, never solid.

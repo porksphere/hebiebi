@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import { Alert } from 'react-native';
 
+import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
 import { useAuth } from '@/lib/auth';
 import { useUpdatePreferences, useUser } from '@/lib/wanikani/queries';
 import { useTheme } from '@/theme';
@@ -26,6 +27,7 @@ export default function SettingsScreen() {
   const { data: user } = useUser();
   const update = useUpdatePreferences();
   const prefs = user?.preferences;
+  const appearance = useAppearance();
 
   function confirmSignOut() {
     Alert.alert('Sign out?', 'Your token will be removed from this device.', [
@@ -73,6 +75,18 @@ export default function SettingsScreen() {
             </FieldGroup.SectionFooter>
           </FieldGroup.Section>
         ) : null}
+
+        <FieldGroup.Section title="Appearance">
+          <Row>
+            <Text>Theme</Text>
+            <Spacer />
+            <Picker selectedValue={appearance} onValueChange={(v) => setAppearance(v as AppearanceChoice)}>
+              <Picker.Item label="System" value="auto" />
+              <Picker.Item label="Light" value="light" />
+              <Picker.Item label="Dark" value="dark" />
+            </Picker>
+          </Row>
+        </FieldGroup.Section>
 
         <FieldGroup.Section title="About">
           <InfoRow label="Version" value={Constants.expoConfig?.version ?? '—'} />

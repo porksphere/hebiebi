@@ -1,19 +1,11 @@
 // The Today screen's two pieces: the review count over a big faint kanji, and the current level
 // as a sheet of kanji practice paper that fills in as you learn.
 
-import { router } from 'expo-router';
-import { Platform, Pressable, StyleSheet, Text, View } from 'react-native';
+import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import type { KanjiState } from '@/lib/wanikani/queries';
+import { kanjiNumber, MINCHO, openSubject, Paper, type PaperState } from '@/components/paper';
 import type { Subject } from '@/lib/wanikani/types';
 import { spacing, useTheme } from '@/theme';
-
-/** A brush-style face for the kanji that are here to be looked at rather than read. */
-const MINCHO = Platform.select({ ios: 'Hiragino Mincho ProN', default: undefined });
-
-function openSubject(id: number) {
-  router.push({ pathname: '/subject/[id]', params: { id: String(id) } });
-}
 
 // --- Review hero ------------------------------------------------------------------------------
 
@@ -123,12 +115,7 @@ export function ReviewHero({
 
 // --- Level paper ------------------------------------------------------------------------------
 
-const COLUMNS = 8;
-
-/**
- * The level's kanji on practice paper. A square is empty until the kanji is unlocked, grey while
- * you're learning it and black once it's passed.
- */
+/** The current level's kanji on practice paper (see paper.tsx), with how many more to level up. */
 export function LevelPaper({
   level,
   kanji,
@@ -137,21 +124,13 @@ export function LevelPaper({
   required,
 }: {
   level: number;
-  kanji: { subject: Subject; state: KanjiState }[];
+  kanji: { subject: Subject; state: PaperState }[];
   passed: number;
   total: number;
   required: number;
 }) {
   const theme = useTheme();
   const toGo = Math.max(0, required - passed);
-  const rows: ({ subject: Subject; state: KanjiState } | null)[][] = [];
-  for (let i = 0; i < kanji.length; i += COLUMNS) {
-    const row: ({ subject: Subject; state: KanjiState } | null)[] = kanji.slice(i, i + COLUMNS);
-    while (row.length < COLUMNS) row.push(null);
-    rows.push(row);
-  }
-  const line = theme.textSecondary;
-
   return (
     <View style={styles.level}>
       <View style={styles.levelHead}>
@@ -163,59 +142,15 @@ export function LevelPaper({
           {passed} of {total}
         </Text>
       </View>
-
-      <View style={[styles.paper, { borderColor: line, backgroundColor: theme.background }]}>
-        {rows.map((row, r) => (
-          <View key={r} style={styles.paperRow}>
-            {row.map((cell, c) => {
-              const shown = cell && cell.state !== 'locked';
-              return (
-                <Pressable
-                  key={c}
-                  disabled={!shown}
-                  accessibilityRole={shown ? 'button' : undefined}
-                  accessibilityLabel={
-                    shown
-                      ? `${cell.subject.data.characters}, ${cell.state === 'passed' ? 'passed' : 'learning'}`
-                      : undefined
-                  }
-                  onPress={() => cell && openSubject(cell.subject.id)}
-                  style={({ pressed }) => [styles.square, { borderColor: line, opacity: pressed ? 0.4 : 1 }]}>
-                  <View style={[styles.guideH, { backgroundColor: theme.border }]} />
-                  <View style={[styles.guideV, { backgroundColor: theme.border }]} />
-                  {shown ? (
-                    <Text
-                      style={[styles.squareGlyph, { color: theme.text, opacity: cell.state === 'passed' ? 1 : 0.28 }]}
-                      adjustsFontSizeToFit
-                      numberOfLines={1}>
-                      {cell.subject.data.characters}
-                    </Text>
-                  ) : null}
-                </Pressable>
-              );
-            })}
-          </View>
-        ))}
-      </View>
-
+      <Paper items={kanji} />
       <Text style={[styles.note, { color: theme.textSecondary }]}>
-        {toGo === 0
-          ? 'Enough kanji passed to level up.'
-          : `${toGo} more kanji to reach level ${level + 1}`}
+        {toGo === 0 ? 'Enough kanji passed to level up.' : `${toGo} more kanji to reach level ${level + 1}`}
       </Text>
     </View>
   );
 }
 
 // --- Shared -----------------------------------------------------------------------------------
-
-const DIGITS = ['', '一', '二', '三', '四', '五', '六', '七', '八', '九'];
-
-/** 1–99 in kanji numerals: 7 → 七, 12 → 十二, 60 → 六十. */
-export function kanjiNumber(n: number) {
-  const tens = Math.floor(n / 10);
-  return (tens > 1 ? DIGITS[tens] : '') + (tens > 0 ? '十' : '') + DIGITS[n % 10];
-}
 
 export function formatWhen(iso: string) {
   const date = new Date(iso);
@@ -256,18 +191,5 @@ const styles = StyleSheet.create({
   levelTitle: { fontSize: 20, fontWeight: '700' },
   levelKanji: { fontFamily: MINCHO, fontWeight: '600' },
   levelCount: { fontSize: 13, fontVariant: ['tabular-nums'] },
-  paper: { borderTopWidth: 1, borderLeftWidth: 1 },
-  paperRow: { flexDirection: 'row' },
-  square: {
-    flex: 1,
-    aspectRatio: 1,
-    borderRightWidth: 1,
-    borderBottomWidth: 1,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  guideH: { position: 'absolute', left: 0, right: 0, top: '50%', height: StyleSheet.hairlineWidth },
-  guideV: { position: 'absolute', top: 0, bottom: 0, left: '50%', width: StyleSheet.hairlineWidth },
-  squareGlyph: { fontSize: 24, fontFamily: MINCHO, fontWeight: '600', textAlign: 'center' },
   note: { fontSize: 13 },
 });

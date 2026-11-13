@@ -1,5 +1,7 @@
 import { useColorScheme } from 'react-native';
 
+import { useAppearance } from '@/lib/appearance';
+
 // Monochrome: white on black in dark mode, black on white in light mode. The only hues in the app
 // are the answer states (they carry information, so they stay) and WaniKani's item-type colours
 // (TYPE_COLORS).
@@ -33,7 +35,10 @@ const palette = {
 export type Palette = { [K in keyof (typeof palette)['light']]: string };
 
 export function useTheme(): Palette & { scheme: 'light' | 'dark' } {
-  const scheme = useColorScheme() === 'dark' ? 'dark' : 'light';
+  const system = useColorScheme() === 'dark' ? 'dark' : 'light';
+  // The choice from Settings wins outright, without waiting for the system to report the override.
+  const choice = useAppearance();
+  const scheme = choice === 'auto' ? system : choice;
   return { ...palette[scheme], scheme };
 }
 
