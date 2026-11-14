@@ -2,6 +2,7 @@ import type {
   Assignment,
   Collection,
   CreateReviewBody,
+  CreateStudyMaterialBody,
   CreateReviewResponse,
   Report,
   Resource,
@@ -9,6 +10,7 @@ import type {
   StudyMaterial,
   Subject,
   Summary,
+  UpdateStudyMaterialBody,
   User,
   UserPreferences,
 } from './types';
@@ -181,6 +183,22 @@ export function createClient(token: string) {
         hidden: false,
       }) as Promise<Resource<Assignment, 'assignment'>[]>,
 
+    /** Unlocked and not started: what's waiting in the lesson queue. */
+    getLessonAssignments: () =>
+      getAll<Assignment>('/assignments', {
+        immediately_available_for_lessons: true,
+        hidden: false,
+      }) as Promise<Resource<Assignment, 'assignment'>[]>,
+
+    /**
+     * Moves an assignment from lessons to reviews (SRS stage 1). `startedAt` (when the lesson was
+     * actually finished) defaults to now on WaniKani's side; it can't be before `unlocked_at`.
+     */
+    startAssignment: (id: number, startedAt?: string) =>
+      request<Resource<Assignment, 'assignment'>>('PUT', `/assignments/${id}/start`, {
+        body: { assignment: startedAt ? { started_at: startedAt } : {} },
+      }),
+
     getAssignments: (query: Query) =>
       getAll<Assignment>('/assignments', query) as Promise<Resource<Assignment, 'assignment'>[]>,
 
@@ -203,6 +221,17 @@ export function createClient(token: string) {
 
     getStudyMaterials: (subjectIds: number[]) =>
       getByIds<StudyMaterial>('/study_materials', subjectIds, 'subject_ids'),
+
+    /** Fails (422) if the subject already has one: update that instead. */
+    createStudyMaterial: (body: CreateStudyMaterialBody) =>
+      request<Resource<StudyMaterial, 'study_material'>>('POST', '/study_materials', {
+        body: { study_material: body },
+      }),
+
+    updateStudyMaterial: (id: number, body: UpdateStudyMaterialBody) =>
+      request<Resource<StudyMaterial, 'study_material'>>('PUT', `/study_materials/${id}`, {
+        body: { study_material: body },
+      }),
 
     createReview: (review: CreateReviewBody) =>
       request<CreateReviewResponse>('POST', '/reviews', { body: { review } }),

@@ -75,9 +75,17 @@ export function isItemDone(item: ReviewItem) {
   return item.meaningDone && item.readingDone;
 }
 
+/**
+ * `activeSize`: how many items are in play at once. A lesson quiz puts its whole batch in play
+ * (WaniKani quizzes every item of the batch together); reviews keep the default.
+ */
 export function createSession(
   items: ReviewItem[],
-  { order = 'shuffled', rng = Math.random }: { order?: PresentationOrder; rng?: Rng } = {},
+  {
+    order = 'shuffled',
+    rng = Math.random,
+    activeSize = ACTIVE_SIZE,
+  }: { order?: PresentationOrder; rng?: Rng; activeSize?: number } = {},
 ): SessionState {
   let ordered = shuffle(items, rng);
   if (order === 'lower_levels_first') {
@@ -90,8 +98,8 @@ export function createSession(
   const ids = ordered.map((i) => i.assignmentId);
   const state: SessionState = {
     items: Object.fromEntries(ordered.map((i) => [i.assignmentId, i])),
-    backlog: ids.slice(ACTIVE_SIZE),
-    active: ids.slice(0, ACTIVE_SIZE),
+    backlog: ids.slice(activeSize),
+    active: ids.slice(0, activeSize),
     completed: [],
     current: null,
     wrappingUp: false,

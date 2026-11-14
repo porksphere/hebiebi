@@ -189,6 +189,24 @@ describe('session', () => {
     expect(state.backlog).toHaveLength(30);
   });
 
+  test('a lesson quiz puts its whole batch in play, and wrong answers keep an item in it', () => {
+    const items = Array.from({ length: 15 }, (_, i) => makeItem(i + 1, kanji(i + 1), 0));
+    let state = createSession(items, { activeSize: items.length, rng: seq(0.5) });
+    expect(state.active).toHaveLength(15);
+    expect(state.backlog).toHaveLength(0);
+    const asked = state.current!.assignmentId;
+    state = advance(answerCurrent(state, false).state, seq(0.5));
+    expect(state.active).toContain(asked);
+    let answered = 1;
+    while (state.current) {
+      state = advance(answerCurrent(state, true).state);
+      answered++;
+    }
+    // Two parts per kanji, plus the one missed.
+    expect(answered).toBe(31);
+    expect(state.completed).toHaveLength(15);
+  });
+
   test('lower levels first', () => {
     const items = [makeItem(1, kanji(1, 5), 1), makeItem(2, kanji(2, 1), 1), makeItem(3, kanji(3, 3), 1)];
     const state = createSession(items, { order: 'lower_levels_first' });

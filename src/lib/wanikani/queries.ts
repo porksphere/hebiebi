@@ -3,8 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useClient } from '../auth';
 import { PASSING_STAGE } from '../srs';
 import type { PaperState } from '@/components/paper';
-import { getMnemonicImage, mayHaveMnemonicImage } from './mnemonic-image-cache';
+import { orderLessons, type LessonItem } from '../lessons/order';
 import { readCachedIndex, syncIndex } from './search-index-cache';
+import { getSubjectPageExtras, mayHaveMnemonicImage, mayHavePatternsOfUse } from './subject-page-cache';
 import type { Subject, UserPreferences } from './types';
 
 export function useUser() {
@@ -133,14 +134,75 @@ export function useSubjectProgress(id: number) {
   });
 }
 
-/** A radical's illustration, from its public WaniKani page (see mnemonic-image-cache.ts). */
+/** A radical's illustration, from its public WaniKani page (see subject-page-cache.ts). */
 export function useMnemonicImage(subject: Subject) {
   return useQuery({
-    queryKey: ['mnemonic-image', subject.id],
+    queryKey: ['subject-page', subject.id],
     enabled: mayHaveMnemonicImage(subject),
-    queryFn: () => getMnemonicImage(subject),
+    queryFn: () => getSubjectPageExtras(subject),
+    select: (extras) => extras.image,
     staleTime: Infinity,
     retry: false,
+  });
+}
+
+/**
+ * A vocabulary item's Patterns of Use, each with its Common Word Combinations, from its public
+ * WaniKani page (see subject-page-cache.ts). Empty when it has none or the page couldn't be read.
+ */
+export function usePatternsOfUse(subject: Subject) {
+  return useQuery({
+    queryKey: ['subject-page', subject.id],
+    enabled: mayHavePatternsOfUse(subject),
+    queryFn: () => getSubjectPageExtras(subject),
+    select: (extras) => extras.patterns,
+    staleTime: Infinity,
+    retry: false,
+  });
+}
+
+// --- Lessons ----------------------------------------------------------------------------------
+
+/**
+ * Everything waiting in the lesson queue, in teaching order, with batch size and autoplay from
+ * the account (fetched fresh, so a change on the website counts). Seeds the per-subject cache.
+ * Start them in batches of `batchSize` (lessons/order.ts `toBatches`).
+ */
+export function useLessons() {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useQuery({
+    queryKey: ['lessons'],
+    queryFn: async () => {
+      const [user, assignments] = await Promise.all([client.getUser(), client.getLessonAssignments()]);
+      queryClient.setQueryData(['user'], user);
+      const ids = assignments.map((a) => a.data.subject_id);
+      const [subjects, materials] = await Promise.all([
+        ids.length ? client.getSubjects(ids) : Promise.resolve([]),
+        // Notes and synonyms are a nicety; a failure here shouldn't block lessons.
+        ids.length ? client.getStudyMaterials(ids).catch(() => []) : Promise.resolve([]),
+      ]);
+      for (const subject of subjects) queryClient.setQueryData(['subject', subject.id], subject);
+      const subjectById = new Map(subjects.map((s) => [s.id, s]));
+      const materialBySubject = new Map(materials.map((m) => [m.data.subject_id, m]));
+      const items = assignments.flatMap((a): LessonItem[] => {
+        const subject = subjectById.get(a.data.subject_id);
+        if (!subject || subject.data.hidden_at) return [];
+        const material = materialBySubject.get(subject.id);
+        return [
+          {
+            assignmentId: a.id,
+            subject,
+            material: material ? (material as LessonItem['material']) : null,
+          },
+        ];
+      });
+      return {
+        items: orderLessons(items, user.preferences.lessons_presentation_order),
+        batchSize: user.preferences.lessons_batch_size,
+        autoplayAudio: user.preferences.lessons_autoplay_audio,
+      };
+    },
   });
 }
 

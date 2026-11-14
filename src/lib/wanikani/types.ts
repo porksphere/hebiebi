@@ -51,11 +51,17 @@ export interface UserPreferences {
   extra_study_autoplay_audio: boolean;
   lessons_autoplay_audio: boolean;
   lessons_batch_size: number;
-  lessons_presentation_order: string;
+  /** Deprecated by WaniKani: always `ascending_level_then_subject`, and setting it does nothing. */
+  lessons_presentation_order: LessonPresentationOrder;
   reviews_autoplay_audio: boolean;
   reviews_display_srs_indicator: boolean;
   reviews_presentation_order: 'shuffled' | 'lower_levels_first';
 }
+
+export type LessonPresentationOrder =
+  | 'ascending_level_then_subject'
+  | 'ascending_level_then_shuffled'
+  | 'shuffled';
 
 // --- Summary ----------------------------------------------------------------------------------
 
@@ -195,6 +201,17 @@ export interface StudyMaterial {
   meaning_synonyms: string[];
   hidden: boolean;
 }
+
+/** POST /study_materials. One per subject per user. */
+export interface CreateStudyMaterialBody {
+  subject_id: number;
+  meaning_note?: string | null;
+  reading_note?: string | null;
+  meaning_synonyms?: string[];
+}
+
+/** PUT /study_materials/:id. Only the fields given change. */
+export type UpdateStudyMaterialBody = Omit<CreateStudyMaterialBody, 'subject_id'>;
 
 // --- Review statistics ------------------------------------------------------------------------
 

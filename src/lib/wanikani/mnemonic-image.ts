@@ -3,7 +3,9 @@
 //   <wk-mnemonic-image src="https://files.wanikani.com/<id>" aria-label="<description>"
 //                      style="aspect-ratio: 1/1;">
 // so the page is fetched when a radical is opened and parsed here. Fetching and the device cache live
-// in mnemonic-image-cache.ts; this file stays free of native modules so it can be unit-tested.
+// in subject-page-cache.ts; this file stays free of native modules so it can be unit-tested.
+
+import { attribute } from './html';
 
 export interface MnemonicImage {
   url: string;
@@ -12,22 +14,6 @@ export interface MnemonicImage {
 }
 
 const IMAGE_HOST = 'https://files.wanikani.com/';
-
-const ENTITIES: Record<string, string> = { amp: '&', quot: '"', apos: "'", lt: '<', gt: '>', nbsp: ' ' };
-function decodeEntities(input: string) {
-  return input.replace(/&(#x[0-9a-f]+|#\d+|\w+);/gi, (whole, code: string) => {
-    if (code[0] === '#') {
-      const n = code[1] === 'x' || code[1] === 'X' ? parseInt(code.slice(2), 16) : parseInt(code.slice(1), 10);
-      return Number.isFinite(n) ? String.fromCodePoint(n) : whole;
-    }
-    return ENTITIES[code.toLowerCase()] ?? whole;
-  });
-}
-
-function attribute(tag: string, name: string) {
-  const match = new RegExp(`\\s${name}\\s*=\\s*("([^"]*)"|'([^']*)')`, 'i').exec(tag);
-  return match ? decodeEntities(match[2] ?? match[3] ?? '') : null;
-}
 
 /**
  * The first real illustration on an item page. The page also carries `<template>` copies with an
