@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, useFocusEffect } from 'expo-router';
-import { useCallback, useState } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { formatWhen, LevelPaper, ReviewHero, type Featured } from '@/components/dashboard';
@@ -8,6 +8,7 @@ import { useClient } from '@/lib/auth';
 import { sessionStats } from '@/lib/review/session';
 import { flushReviews, pendingCount } from '@/lib/review/submissions';
 import { isInProgress, useReviewSession } from '@/lib/review/use-review-session';
+import { syncReviewsWidget } from '@/lib/widget';
 import { useLevelKanji, useSearchIndex, useSummary, useUser } from '@/lib/wanikani/queries';
 import { spacing, useGutters, useTheme } from '@/theme';
 
@@ -26,6 +27,11 @@ export default function TodayScreen() {
   const [pending, setPending] = useState(pendingCount);
   const session = useReviewSession();
   const stats = session.state ? sessionStats(session.state) : null;
+
+  // The widget gets the day's forecast whenever it changes.
+  useEffect(() => {
+    if (summary.data) syncReviewsWidget(summary.data);
+  }, [summary.data]);
 
   const sync = useCallback(async () => {
     if (pendingCount() === 0) return;

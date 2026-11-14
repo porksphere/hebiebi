@@ -121,9 +121,12 @@ jobs:
         working-directory: ios
         run: |
           set -euo pipefail
-          PLIST=$(find . -maxdepth 2 -name Info.plist -not -path '*/Pods/*' | head -1)
-          /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.ver.outputs.full }}" "$PLIST"
-          /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.ver.outputs.build_number }}" "$PLIST"
+          # The app's and the widget extension's: iOS wants an extension's version to match its app's.
+          find . -maxdepth 2 -name Info.plist -not -path '*/Pods/*' | while read -r PLIST; do
+            echo "stamping $PLIST"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleShortVersionString ${{ steps.ver.outputs.full }}" "$PLIST"
+            /usr/libexec/PlistBuddy -c "Set :CFBundleVersion ${{ steps.ver.outputs.build_number }}" "$PLIST"
+          done
 
       # React Native's ccache-clang.sh runs `exec $CCACHE_BINARY clang`, relying on a build setting
       # Xcode 26+ no longer passes to compile tasks (RN #55381). With it empty the wrapper runs bare
@@ -183,7 +186,9 @@ jobs:
         run: ccache -s -v 2>/dev/null || ccache -s
 
       # Ad-hoc signed rather than not signed at all: codesign then validates the bundle here, and
-      # AltStore/SideStore replace the signature with their own anyway.
+      # AltStore/SideStore replace the signature with their own anyway. The entitlements are
+      # signed in because that is where AltStore reads which app groups to set up, and the widget
+      # shares its data with the app through one.
       - name: Package IPA
         run: |
           set -euo pipefail
@@ -194,7 +199,18 @@ jobs:
           for code in "$APP"/Frameworks/*.framework "$APP"/Frameworks/*.dylib; do
             if [ -e "$code" ]; then codesign --force --sign - "$code"; fi
           done
-          codesign --force --sign - "$APP"
+          for ext in "$APP"/PlugIns/*.appex; do
+            [ -e "$ext" ] || continue
+            ENT="ios/$(basename "$ext" .appex)/$(basename "$ext" .appex).entitlements"
+            [ -f "$ENT" ] || { echo "::error::no entitlements for $ext at $ENT"; exit 1; }
+            codesign --force --sign - --entitlements "$ENT" "$ext"
+          done
+          # The app's own: the one entitlements file prebuild wrote that isn't an extension's.
+          APP_ENT="$(find ios -maxdepth 2 -name '*.entitlements' -not -path 'ios/Pods/*' -not -path 'ios/ExpoWidgetsTarget/*' | head -1)"
+          [ -n "$APP_ENT" ] || { echo "::error::no app entitlements file under ios/"; exit 1; }
+          echo "app entitlements: $APP_ENT"
+          codesign --force --sign - --entitlements "$APP_ENT" "$APP"
+          codesign -d --entitlements - "$APP" | grep -q 'application-groups' || { echo "::error::app group missing from the signed app"; exit 1; }
           codesign --verify --deep --strict "$APP"
           (cd "$RUNNER_TEMP" && zip -qry hebiebi-unsigned.ipa Payload)
           ls -lh "$RUNNER_TEMP/hebiebi-unsigned.ipa"

@@ -109,14 +109,14 @@ function Caret({ color }: { color: string }) {
 const FONT_SIZE = 24;
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: 16 },
-  input: { fontSize: FONT_SIZE, paddingVertical: 14, paddingHorizontal: 16, minHeight: 60 },
+  wrap: { borderRadius: 30 },
+  input: { fontSize: FONT_SIZE, paddingVertical: 14, paddingHorizontal: 24, minHeight: 60 },
   overlay: {
     ...StyleSheet.absoluteFill,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingHorizontal: 16,
+    paddingHorizontal: 24,
   },
   text: { fontSize: FONT_SIZE, flexShrink: 1 },
   pending: { opacity: 0.4 },

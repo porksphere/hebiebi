@@ -62,7 +62,31 @@
       ],
       "expo-web-browser",
       "./plugins/with-devclient-variant.js",
-      "expo-asset"
+      "expo-asset",
+      [
+        "expo-widgets",
+        {
+          "bundleIdentifier": "com.porksphere.hebiebi.widgets",
+          "groupIdentifier": "group.com.porksphere.hebiebi",
+          "widgets": [
+            {
+              "name": "Reviews",
+              "displayName": "Reviews",
+              "description": "Reviews ready now, and when more arrive.",
+              "ios": {
+                "supportedFamilies": [
+                  "systemSmall",
+                  "accessoryCircular",
+                  "accessoryRectangular",
+                  "accessoryInline"
+                ],
+                "initialLayout": "src/widgets/reviews.tsx"
+              },
+              "android": null
+            }
+          ]
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,

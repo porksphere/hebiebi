@@ -381,7 +381,7 @@ export default function ReviewScreen() {
               accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
             />
             {/* An item done: light sweeps across the green field. */}
-            <Shine ref={shine} radius={16} />
+            <Shine ref={shine} radius={30} />
           </Animated.View>
 
           <View style={styles.feedback}>

@@ -1,0 +1,47 @@
+diff --git a/ios/Widgets/TimelineProvider.swift b/ios/Widgets/TimelineProvider.swift
+index f339d981be36efed718ddd635b9c82195f981880..acf2f8b3e409a02c3c74c4aeb9004e155e4b9ad2 100644
+--- a/ios/Widgets/TimelineProvider.swift
++++ b/ios/Widgets/TimelineProvider.swift
+@@ -8,8 +8,7 @@ public struct WidgetsTimelineProvider: TimelineProvider {
+   public func getSnapshot(
+     in context: Context, completion: @escaping @Sendable (WidgetsTimelineEntry) -> Void
+   ) {
+-    let groupIdentifier =
+-      Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++    let groupIdentifier = WidgetsStorage.appGroupIdentifier
+     guard let groupIdentifier else {
+       completion(WidgetsTimelineEntry(date: Date(), name: name, props: WidgetsLayoutRegistry.initialProps(for: name), entryIndex: nil))
+       return
+@@ -23,8 +22,7 @@ public struct WidgetsTimelineProvider: TimelineProvider {
+     in context: Context,
+     completion: @escaping @Sendable (Timeline<WidgetsTimelineEntry>) -> Void
+   ) {
+-    let groupIdentifier =
+-      Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++    let groupIdentifier = WidgetsStorage.appGroupIdentifier
+     guard let groupIdentifier else {
+       fatalError("Could not get the app group identifier from Info.plist")
+     }
+diff --git a/ios/WidgetsStorage.swift b/ios/WidgetsStorage.swift
+index 86f9d6c615a77777a9a497786b6a883e15eefdc1..0294fea08aa17c223cb13ae33db9a01ff6598aa9 100644
+--- a/ios/WidgetsStorage.swift
++++ b/ios/WidgetsStorage.swift
+@@ -1,5 +1,17 @@
+ public enum WidgetsStorage {
+-  public static var appGroupIdentifier: String? = Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String
++  public static var appGroupIdentifier: String? = resolveAppGroupIdentifier()
++
++  // AltStore and SideStore re-sign with a personal team and rename every app group to
++  // "<group>.<teamID>", listing the new names under ALTAppGroups in each bundle's Info.plist.
++  // The name written at build time is then no longer one the app is entitled to, so prefer the
++  // renamed one when it is there. (Hebiebi patch.)
++  static func resolveAppGroupIdentifier() -> String? {
++    guard let base = Bundle.main.object(forInfoDictionaryKey: "ExpoWidgetsAppGroupIdentifier") as? String else {
++      return nil
++    }
++    let renamed = Bundle.main.object(forInfoDictionaryKey: "ALTAppGroups") as? [String] ?? []
++    return renamed.first(where: { $0.hasPrefix(base + ".") }) ?? base
++  }
+   static let defaults = UserDefaults(suiteName: appGroupIdentifier)
+ 
+   static func set(_ value: [String: Any], forKey key: String) {

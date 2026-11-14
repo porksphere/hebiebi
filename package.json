@@ -25,6 +25,7 @@
     "expo-symbols": "~58.0.5",
     "expo-system-ui": "~58.0.7",
     "expo-web-browser": "~58.0.8",
+    "expo-widgets": "~58.0.28",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -53,5 +54,8 @@
     "lint": "expo lint",
     "test": "bun test"
   },
-  "private": true
+  "private": true,
+  "patchedDependencies": {
+    "expo-widgets@58.0.28": "patches/expo-widgets@58.0.28.patch"
+  }
 }

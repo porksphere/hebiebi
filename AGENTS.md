@@ -64,5 +64,9 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   bar down the side of a folded phone). Content stays inside them. Only things that scroll
   sideways, backgrounds, Today's big kanji, and list dividers (to the trailing edge, as native
   lists do) go past.
+- Widget: `src/widgets/reviews.tsx` (expo-widgets), fed a timeline by `src/lib/widget.ts`. A
+  widget layout can't use anything from outside its own function. `patches/` makes expo-widgets
+  use the app group AltStore renames at install, and CI signs the entitlements in so AltStore
+  sets that group up; don't drop either.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.

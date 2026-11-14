@@ -40,6 +40,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
 - **Search** (the tab bar's search button): by meaning, reading (kana or romaji) or characters.
   The first search downloads a slim list of every subject (about 1–2 MB) and keeps it on the phone;
   after that only changes are fetched.
+- **Widget** (home screen and lock screen): how many reviews are ready and when more arrive. It
+  follows WaniKani's forecast on the hour without the app running, and is refreshed whenever the
+  app opens.
 - **Settings**: account info, review preferences (synced with WaniKani), theme (system, light or
   dark), and sign out.
 

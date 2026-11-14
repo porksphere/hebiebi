@@ -16,6 +16,7 @@ on:
       - 'src/**'
       - 'assets/**'
       - 'plugins/**'
+      - 'patches/**'
       - 'app.json'
       - 'package.json'
       - 'bun.lock'
