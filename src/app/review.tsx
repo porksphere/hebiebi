@@ -1,12 +1,10 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useHeaderHeight } from 'expo-router/react-navigation';
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
-  KeyboardAvoidingView,
   Pressable,
   StyleSheet,
   Text,
@@ -29,6 +27,7 @@ import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import { useAnswerStyle } from '@/lib/answer-style';
+import { useKeyboardSpace } from '@/lib/keyboard-space';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
 import { blend, spacing, TYPE_COLORS, typeTint, useTheme } from '@/theme';
 
@@ -56,7 +55,7 @@ export default function ReviewScreen() {
     phase.kind === 'graded' ? closeEnough(phase.result) : null,
   );
   const shake = useRef(new Animated.Value(0)).current;
-  const headerHeight = useHeaderHeight();
+  const keyboardSpace = useKeyboardSpace();
   const shine = useRef<ShineHandle>(null);
   const arrive = useArrive();
   /** The item just finished, lifting away over the next one (see LiftAway). */
@@ -327,14 +326,18 @@ export default function ReviewScreen() {
       : theme.background;
 
   return (
-    // The system keyboard avoidance. It measures itself against its parent, which starts below the
-    // native header, so the header's height goes in the offset. The home-indicator inset comes off
-    // it too, since the content inside already keeps clear of that.
-    <KeyboardAvoidingView
-      behavior="padding"
-      keyboardVerticalOffset={headerHeight - insets.bottom}
-      style={[styles.root, { backgroundColor: screenBg }]}>
-      <View style={[styles.root, { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
+    // The keyboard's room is always kept (lib/keyboard-space.ts), whether it's up or not, so
+    // nothing slides when it hides for Item Info and comes back.
+    <View style={[styles.root, { backgroundColor: screenBg }]}>
+      <View
+        style={[
+          styles.root,
+          {
+            paddingBottom: Math.max(insets.bottom, keyboardSpace),
+            paddingLeft: insets.left,
+            paddingRight: insets.right,
+          },
+        ]}>
         {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, {
           leading: 'minimize',
           wrapUp: true,
@@ -437,7 +440,7 @@ export default function ReviewScreen() {
           </View>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -455,8 +458,8 @@ function closeEnough(result: CheckResult) {
 }
 
 /**
- * Disabled (before the answer is graded): an outline only, quiet text. Enabled: filled in, black
- * for Next, grey for Item Info.
+ * Before the answer is graded both are disabled: a faint outline and quiet text. Once they work,
+ * Next fills in and Item Info's outline and text go to full strength.
  */
 function ActionButton({
   label,
@@ -470,8 +473,8 @@ function ActionButton({
   disabled?: boolean;
 }) {
   const theme = useTheme();
-  const fill = disabled ? 'transparent' : primary ? theme.inverseBackground : theme.surfaceStrong;
-  const border = disabled ? theme.border : fill;
+  const fill = !disabled && primary ? theme.inverseBackground : 'transparent';
+  const border = disabled ? theme.border : primary ? theme.inverseBackground : theme.text;
   const color = disabled ? theme.textSecondary : primary ? theme.inverseText : theme.text;
   return (
     <Pressable
