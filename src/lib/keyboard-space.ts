@@ -11,7 +11,8 @@ import { File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
 import { Dimensions, Keyboard, LayoutAnimation, useWindowDimensions, type KeyboardEvent } from 'react-native';
 
-const file = new File(Paths.document, 'keyboard-heights.json');
+// v2: v1 could learn a wrong height mid-rotation, so its entries are dropped.
+const file = new File(Paths.document, 'keyboard-heights-v2.json');
 
 let heights: Record<string, number> = {};
 try {
@@ -34,10 +35,22 @@ export function useKeyboardSpace() {
     function onShow(e: KeyboardEvent) {
       const now = Dimensions.get('window');
       const k = keyFor(now.width, now.height);
-      // How far the keyboard reaches up from the bottom of the window.
-      const height = Math.max(0, Math.round(now.height - e.endCoordinates.screenY));
-      // A small one is a hardware keyboard's bar or a floating keyboard: nothing to learn from.
-      if (height < 150 || height <= (heights[k] ?? 0)) return;
+      const { screenY, height: frameHeight, width: frameWidth } = e.endCoordinates;
+      const height = Math.round(frameHeight);
+      // Only learn from a keyboard docked across the bottom of this window. Mid-rotation the
+      // window and keyboard sizes briefly disagree; a floating or split keyboard, or a hardware
+      // keyboard's bar, doesn't fill the bottom. None of those say anything about the docked one.
+      const docked =
+        Math.abs(screenY + frameHeight - now.height) <= 2 && frameWidth >= now.width - 2 && height >= 150;
+      // And never more than 60% of the window: anything bigger is a bad reading, not a keyboard.
+      const plausible = height <= now.height * 0.6;
+      if (__DEV__) {
+        console.log(
+          `[keyboard] window ${k}, frame y ${Math.round(screenY)} h ${height} w ${Math.round(frameWidth)}` +
+            ` → ${docked && plausible ? `ok (known ${heights[k] ?? 'none'})` : 'ignored'}`,
+        );
+      }
+      if (!docked || !plausible || height <= (heights[k] ?? 0)) return;
       if (e.duration) {
         LayoutAnimation.configureNext({
           duration: e.duration,
@@ -52,5 +65,6 @@ export function useKeyboardSpace() {
     return () => subs.forEach((s) => s.remove());
   }, []);
 
-  return learned[key] ?? 0;
+  // Never reserve more than the keyboard could take of this window, whatever was saved.
+  return Math.min(learned[key] ?? 0, Math.round(window.height * 0.6));
 }
