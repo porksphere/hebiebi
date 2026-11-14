@@ -454,6 +454,10 @@ function closeEnough(result: CheckResult) {
   return result.kind === 'correct' && !result.exact ? `Close enough — it’s “${result.matched}”.` : null;
 }
 
+/**
+ * Disabled (before the answer is graded): an outline only, quiet text. Enabled: filled in, black
+ * for Next, grey for Item Info.
+ */
 function ActionButton({
   label,
   onPress,
@@ -466,6 +470,9 @@ function ActionButton({
   disabled?: boolean;
 }) {
   const theme = useTheme();
+  const fill = disabled ? 'transparent' : primary ? theme.inverseBackground : theme.surfaceStrong;
+  const border = disabled ? theme.border : fill;
+  const color = disabled ? theme.textSecondary : primary ? theme.inverseText : theme.text;
   return (
     <Pressable
       onPress={onPress}
@@ -476,12 +483,9 @@ function ActionButton({
       focusable={false}
       style={({ pressed }) => [
         styles.action,
-        primary
-          ? { backgroundColor: theme.inverseBackground, borderColor: theme.inverseBackground }
-          : { borderColor: theme.border },
-        { opacity: disabled ? 0.3 : pressed ? 0.7 : 1 },
+        { backgroundColor: fill, borderColor: border, opacity: pressed ? 0.7 : 1 },
       ]}>
-      <Text style={[styles.actionText, { color: primary ? theme.inverseText : theme.text }]}>{label}</Text>
+      <Text style={[styles.actionText, { color }]}>{label}</Text>
     </Pressable>
   );
 }
