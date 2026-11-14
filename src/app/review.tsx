@@ -28,8 +28,9 @@ import { haptics } from '@/lib/haptics';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
+import { useAnswerStyle } from '@/lib/answer-style';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
-import { spacing, typeTint, useTheme } from '@/theme';
+import { blend, spacing, TYPE_COLORS, typeTint, useTheme } from '@/theme';
 
 const TYPE_NAMES: Record<SubjectType, string> = {
   radical: 'Radical',
@@ -40,6 +41,7 @@ const TYPE_NAMES: Record<SubjectType, string> = {
 
 export default function ReviewScreen() {
   const theme = useTheme();
+  const answerStyle = useAnswerStyle();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const session = useReviewSession();
@@ -211,13 +213,20 @@ export default function ReviewScreen() {
 
   // --- Non-question states ----------------------------------------------------------------------
 
-  const header = (title: string, { leading, wrapUp = false }: { leading?: 'minimize' | 'close'; wrapUp?: boolean } = {}) => (
+  const header = (
+    title: string,
+    {
+      leading,
+      wrapUp = false,
+      background = theme.background,
+    }: { leading?: 'minimize' | 'close'; wrapUp?: boolean; background?: string } = {},
+  ) => (
     <>
       <Stack.Screen
         options={{
           title,
           headerShadowVisible: false,
-          headerStyle: { backgroundColor: theme.background },
+          headerStyle: { backgroundColor: background },
           headerTintColor: theme.text,
         }}
       />
@@ -296,17 +305,26 @@ export default function ReviewScreen() {
 
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
-  // Before Enter, the field is a soft tint of the item type's WaniKani colour, with WaniKani's
-  // light/dark cue for what to type: faint for a meaning (English), stronger for a reading (kana),
-  // so both "what is it?" and "English or kana?" read at a glance. Graded: green or red.
+  // Before Enter, the answer carries the item type's WaniKani colour with WaniKani's light/dark cue
+  // for what to type: faint for a meaning (English), stronger for a reading (kana), so "what is
+  // it?" and "English or kana?" read at a glance. After Enter, green or red. Where that colour
+  // goes depends on the answer style chosen in Settings (lib/answer-style.ts).
   const dark = theme.scheme === 'dark';
-  const inputBg = graded
-    ? graded.correct
-      ? theme.correct
-      : theme.incorrect
-    : typeTint(item.subject.object, isReading ? (dark ? 0.42 : 0.36) : dark ? 0.2 : 0.13);
-  const inputFg = graded ? '#FFFFFF' : theme.text;
+  const typeColor = TYPE_COLORS[item.subject.object];
+  const gradeColor = graded ? (graded.correct ? theme.correct : theme.incorrect) : null;
+  const inputBg =
+    answerStyle === 'pill'
+      ? (gradeColor ?? typeTint(item.subject.object, isReading ? (dark ? 0.42 : 0.36) : dark ? 0.2 : 0.13))
+      : 'transparent';
+  const inputFg = answerStyle === 'pill' ? (graded ? '#FFFFFF' : theme.text) : (gradeColor ?? theme.text);
   const placeholderFg = theme.textSecondary;
+  // Page wash: the whole screen, header included, so solid colours rather than see-through ones.
+  const screenBg =
+    answerStyle === 'wash'
+      ? gradeColor
+        ? blend(theme.background, gradeColor, dark ? 0.22 : 0.16)
+        : blend(theme.background, typeColor, isReading ? (dark ? 0.24 : 0.16) : dark ? 0.1 : 0.06)
+      : theme.background;
 
   return (
     // The system keyboard avoidance. It measures itself against its parent, which starts below the
@@ -315,11 +333,12 @@ export default function ReviewScreen() {
     <KeyboardAvoidingView
       behavior="padding"
       keyboardVerticalOffset={headerHeight - insets.bottom}
-      style={[styles.root, { backgroundColor: theme.background }]}>
+      style={[styles.root, { backgroundColor: screenBg }]}>
       <View style={[styles.root, { paddingBottom: insets.bottom, paddingLeft: insets.left, paddingRight: insets.right }]}>
         {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, {
           leading: 'minimize',
           wrapUp: true,
+          background: screenBg,
         })}
 
         <View style={styles.hero}>
@@ -362,6 +381,7 @@ export default function ReviewScreen() {
           <Text
             style={[styles.label, { color: theme.textSecondary, opacity: correction ? 0 : 1 }]}
             accessibilityElementsHidden={!!correction}>
+            {answerStyle === 'ink' ? <Text style={{ color: typeColor }}>● </Text> : null}
             {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
           </Text>
 
@@ -380,8 +400,19 @@ export default function ReviewScreen() {
               returnKeyType={graded ? 'next' : 'done'}
               accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
             />
-            {/* An item done: light sweeps across the green field. */}
-            <Shine ref={shine} radius={30} />
+            {answerStyle === 'underline' ? (
+              <View
+                style={[
+                  styles.underline,
+                  {
+                    backgroundColor: gradeColor ?? (isReading ? typeColor : typeTint(item.subject.object, 0.45)),
+                    height: graded || isReading ? 3 : 1.5,
+                  },
+                ]}
+              />
+            ) : null}
+            {/* An item done: light sweeps across the green field. (Only the pill has a field.) */}
+            {answerStyle === 'pill' ? <Shine ref={shine} radius={30} /> : null}
           </Animated.View>
 
           <View style={styles.feedback}>
@@ -438,6 +469,7 @@ const styles = StyleSheet.create({
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
   label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },
+  underline: { marginHorizontal: spacing.sm, borderRadius: 2 },
   labelPart: { fontWeight: '600' },
   feedback: { minHeight: 44, gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },

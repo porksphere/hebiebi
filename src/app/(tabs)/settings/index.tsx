@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 import { Alert } from 'react-native';
 
+import { setAnswerStyle, useAnswerStyle, type AnswerStyle } from '@/lib/answer-style';
 import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
 import { useAuth } from '@/lib/auth';
 import { useUpdatePreferences, useUser } from '@/lib/wanikani/queries';
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
   const update = useUpdatePreferences();
   const prefs = user?.preferences;
   const appearance = useAppearance();
+  const answerStyle = useAnswerStyle();
 
   function confirmSignOut() {
     Alert.alert('Sign out?', 'Your token will be removed from this device.', [
@@ -84,6 +86,16 @@ export default function SettingsScreen() {
               <Picker.Item label="System" value="auto" />
               <Picker.Item label="Light" value="light" />
               <Picker.Item label="Dark" value="dark" />
+            </Picker>
+          </Row>
+          <Row>
+            <Text>Answer style</Text>
+            <Spacer />
+            <Picker selectedValue={answerStyle} onValueChange={(v) => setAnswerStyle(v as AnswerStyle)}>
+              <Picker.Item label="Pill" value="pill" />
+              <Picker.Item label="Underline" value="underline" />
+              <Picker.Item label="Page wash" value="wash" />
+              <Picker.Item label="Ink only" value="ink" />
             </Picker>
           </Row>
         </FieldGroup.Section>

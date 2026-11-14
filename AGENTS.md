@@ -58,8 +58,9 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   screen is custom RN. The theme is monochrome (`src/theme`), light or dark by the phone or by the choice in Settings
   (`src/lib/appearance.ts`). Today and Levels share a practice-paper look (`src/components/paper.tsx`). The only hues are the
   correct/incorrect answer states and WaniKani's item-type colours (`TYPE_COLORS`): small dots and
-  tints where you browse, and the review answer field before grading (a faint tint for a meaning,
-  a stronger one for a reading, WaniKani's light/dark cue). Tints, via `typeTint`, never solid.
+  tints where you browse, and the review answer before grading (a faint tint for a meaning, a
+  stronger one for a reading, WaniKani's light/dark cue), drawn in the answer style picked in
+  Settings (`src/lib/answer-style.ts`: pill, underline, page wash or ink only). Tints, via `typeTint`, never solid.
 - Side margins come from `useGutters()` (`src/theme`): 16 plus the side safe-area inset (the nav
   bar down the side of a folded phone). Content stays inside them. Only things that scroll
   sideways, backgrounds, Today's big kanji, and list dividers (to the trailing edge, as native

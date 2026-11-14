@@ -68,10 +68,27 @@ export function useGutters() {
  * deep muted shade (on black) while keeping its hue. `strength` is 0–1.
  */
 export function typeTint(type: keyof typeof TYPE_COLORS, strength: number) {
+  return withAlpha(TYPE_COLORS[type], strength);
+}
+
+/** A `#RRGGBB` colour at `strength` (0–1) opacity. */
+export function withAlpha(hex: string, strength: number) {
   const alpha = Math.round(Math.min(1, Math.max(0, strength)) * 255)
     .toString(16)
     .padStart(2, '0');
-  return `${TYPE_COLORS[type]}${alpha}`;
+  return `${hex}${alpha}`;
+}
+
+/** `color` laid over `base` at `strength` (0–1), as one solid `#RRGGBB` (for native chrome). */
+export function blend(base: string, color: string, strength: number) {
+  const channel = (hex: string, i: number) => parseInt(hex.slice(1 + i * 2, 3 + i * 2), 16);
+  return (
+    '#' +
+    [0, 1, 2]
+      .map((i) => Math.round(channel(base, i) + (channel(color, i) - channel(base, i)) * strength))
+      .map((n) => n.toString(16).padStart(2, '0'))
+      .join('')
+  );
 }
 
 export const TYPE_COLORS = {
