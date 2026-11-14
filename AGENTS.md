@@ -65,6 +65,13 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   bar down the side of a folded phone). Content stays inside them. Only things that scroll
   sideways, backgrounds, Today's big kanji, and list dividers (to the trailing edge, as native
   lists do) go past.
+- Not in the API, so read from the public item page (`document_url`) and cached on the phone by
+  `src/lib/wanikani/subject-page-cache.ts`: radical illustrations and vocabulary Patterns of Use.
+  Undocumented HTML, so any failure just means it's not shown.
+- Work that must reach WaniKani (reviews, lesson starts) goes through `src/lib/outbox.ts`: saved on
+  the phone, sent oldest first, 422s dropped. Synonyms and notes save directly (`useSaveStudyMaterial`;
+  one study material per subject, updated in place).
+- Lessons: groundwork only (`src/lib/lessons/`, `useLessons`, `startAssignment`); no screens yet.
 - Widget: `src/widgets/reviews.tsx` (expo-widgets), fed a timeline by `src/lib/widget.ts`. A
   widget layout can't use anything from outside its own function. `patches/` makes expo-widgets
   use the app group AltStore renames at install, and CI signs the entitlements in so AltStore

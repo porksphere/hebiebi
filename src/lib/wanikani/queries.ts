@@ -6,7 +6,7 @@ import type { PaperState } from '@/components/paper';
 import { orderLessons, type LessonItem } from '../lessons/order';
 import { readCachedIndex, syncIndex } from './search-index-cache';
 import { getSubjectPageExtras, mayHaveMnemonicImage, mayHavePatternsOfUse } from './subject-page-cache';
-import type { Subject, UserPreferences } from './types';
+import type { Subject, UpdateStudyMaterialBody, UserPreferences } from './types';
 
 export function useUser() {
   const client = useClient();
@@ -129,7 +129,40 @@ export function useSubjectProgress(id: number) {
         assignment: assignments[0]?.data ?? null,
         stats: stats[0]?.data ?? null,
         material: materials[0]?.data ?? null,
+        /** Needed to change the notes and synonyms: there's one record per subject, updated in place. */
+        materialId: materials[0]?.id ?? null,
       };
+    },
+  });
+}
+
+export type SubjectProgress = NonNullable<ReturnType<typeof useSubjectProgress>['data']>;
+
+/**
+ * Saves the user's notes or synonyms for a subject: updates the one record if it exists, creates it
+ * if not. Only the fields given change. Needs a token with the study materials permissions; a
+ * refusal shows as a toast (the root layout's mutation cache), and the caller keeps what was typed.
+ */
+export function useSaveStudyMaterial(subjectId: number) {
+  const client = useClient();
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: async (changes: UpdateStudyMaterialBody) => {
+      const progress = queryClient.getQueryData<SubjectProgress>(['subject-progress', subjectId]);
+      let id = progress?.materialId ?? null;
+      if (id === null) {
+        // Not loaded, or made elsewhere since: look before creating, as a second one is refused.
+        const [existing] = await client.getStudyMaterials([subjectId]);
+        id = existing?.id ?? null;
+      }
+      return id === null
+        ? client.createStudyMaterial({ subject_id: subjectId, ...changes })
+        : client.updateStudyMaterial(id, changes);
+    },
+    onSuccess: (saved) => {
+      queryClient.setQueryData<SubjectProgress>(['subject-progress', subjectId], (old) =>
+        old ? { ...old, material: saved.data, materialId: saved.id } : old,
+      );
     },
   });
 }

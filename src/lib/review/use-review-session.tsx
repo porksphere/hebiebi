@@ -206,6 +206,16 @@ function useSessionController() {
     setState((s) => (s ? setWrappingUp(s, !s.wrappingUp) : s));
   }, []);
 
+  /** Synonyms changed on an item's page mid-session: later answers for that item accept them. */
+  const updateSynonyms = useCallback((subjectId: number, synonyms: string[]) => {
+    setState((s) => {
+      if (!s) return s;
+      const hit = Object.values(s.items).find((i) => i.subject.id === subjectId);
+      if (!hit) return s;
+      return { ...s, items: { ...s.items, [hit.assignmentId]: { ...hit, synonyms } } };
+    });
+  }, []);
+
   return {
     active,
     start,
@@ -220,6 +230,7 @@ function useSessionController() {
     next,
     undo,
     toggleWrapUp,
+    updateSynonyms,
     endingStages,
     unsent,
     submitError,

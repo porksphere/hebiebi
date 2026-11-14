@@ -11,7 +11,8 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
 - **Sign in** with a WaniKani personal access token, stored in the iOS Keychain. WaniKani's API only
   allows tokens for third-party apps. Create one at
   <https://www.wanikani.com/settings/personal_access_tokens/new> with **reviews:create** ticked (and
-  **user:update** if you want to change review settings from the app).
+  **user:update** if you want to change review settings from the app, and **study_materials:create**
+  and **study_materials:update** to add your own synonyms and notes).
 - **Today**: the reviews that are ready, over a big faint kanji picked from them. Below it, your
   level as a sheet of kanji practice paper: a square is empty until the kanji unlocks, grey while
   you learn it and black once it's passed. One line covers what's next and any lessons.
@@ -37,6 +38,13 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
 - **Levels**: opens on your level, with a strip of numbers along the top to slide to another. A
   level shows its radicals and kanji on the same practice paper as Today and its vocabulary as a
   list; what you haven't unlocked is blank or faint.
+- **Item pages** (tap any item, or Item Info in a review): everything WaniKani's item page has.
+  Meanings and word type, mnemonics, hints and illustrations, all readings with audio, what it's made
+  of and found in (with readings), look-alike kanji, context sentences, and for vocabulary the
+  Patterns of Use with their common word combinations (not in the API; read from the public page and
+  kept on the phone). Your synonyms and notes, which you can add and change. Your progress: stage,
+  next review, the dates it unlocked, started, passed and burned, and right/wrong counts and streaks
+  for meaning and reading.
 - **Search** (the tab bar's search button): by meaning, reading (kana or romaji) or characters.
   The first search downloads a slim list of every subject (about 1–2 MB) and keeps it on the phone;
   after that only changes are fetched.

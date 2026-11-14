@@ -31,6 +31,9 @@ const TIMEOUT_MS = 30_000;
 export function describeError(error: unknown): { title: string; detail?: string } {
   if (error instanceof WaniKaniError) {
     if (error.status === 0) return { title: 'WaniKani didn’t answer in time', detail: 'Check your connection and try again.' };
+    if (error.status === 403) {
+      return { title: 'Your token doesn’t allow this', detail: 'Make a new one on WaniKani (Settings → API Tokens) with the permission for it ticked.' };
+    }
     if (error.status === 429) return { title: 'Too many requests to WaniKani', detail: 'Wait a minute and try again.' };
     if (error.status >= 500) return { title: 'WaniKani is having trouble', detail: `It returned an error (${error.status}). Try again soon.` };
     return { title: 'WaniKani refused a request', detail: error.message };
