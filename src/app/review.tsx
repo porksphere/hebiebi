@@ -341,7 +341,9 @@ export default function ReviewScreen() {
           background: screenBg,
         })}
 
-        <View style={styles.hero}>
+        <View
+          style={styles.hero}
+          onLayout={__DEV__ ? (e) => logLayout('hero', e.nativeEvent.layout) : undefined}>
           <View style={styles.heroStack}>
             {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
             <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
@@ -374,7 +376,10 @@ export default function ReviewScreen() {
           </View>
         </View>
 
-        <View style={styles.answerArea}>
+        <View
+          style={styles.answerArea}
+          // Development only: logs to Metro whenever the answer area moves or resizes.
+          onLayout={__DEV__ ? (e) => logLayout('answer area', e.nativeEvent.layout) : undefined}>
           {/* What's being asked, kept quiet: the type in grey, the part in the text colour. Hidden
               (but still taking its space, so nothing moves) while the right answer is showing,
               which can reach down over it. */}
@@ -416,18 +421,28 @@ export default function ReviewScreen() {
           </Animated.View>
 
           <View style={styles.feedback}>
-            {message ? <Text style={[styles.message, { color: theme.textSecondary }]}>{message}</Text> : null}
-            {graded ? (
-              <View style={styles.actions}>
-                <ActionButton label="Item Info" onPress={openInfo} />
-                <ActionButton label="Next" onPress={goNext} primary />
-              </View>
-            ) : null}
+            {/* One line kept for it even when empty, shrinking to fit, so a message never moves anything. */}
+            <Text
+              style={[styles.message, { color: theme.textSecondary }]}
+              numberOfLines={1}
+              adjustsFontSizeToFit
+              minimumFontScale={0.7}>
+              {message ?? ' '}
+            </Text>
+            {/* Always there, so nothing moves on Enter; they only work once the answer is graded. */}
+            <View style={styles.actions}>
+              <ActionButton label="Item Info" onPress={openInfo} disabled={!graded} />
+              <ActionButton label="Next" onPress={goNext} primary disabled={!graded} />
+            </View>
           </View>
         </View>
       </View>
     </KeyboardAvoidingView>
   );
+}
+
+function logLayout(what: string, { y, height }: { y: number; height: number }) {
+  console.log(`[review layout] ${what}: y ${y.toFixed(1)}, height ${height.toFixed(1)}`);
 }
 
 /** Readings show as kana once graded, even if the last syllable was still romaji. */
@@ -439,17 +454,32 @@ function closeEnough(result: CheckResult) {
   return result.kind === 'correct' && !result.exact ? `Close enough — it’s “${result.matched}”.` : null;
 }
 
-function ActionButton({ label, onPress, primary }: { label: string; onPress: () => void; primary?: boolean }) {
+function ActionButton({
+  label,
+  onPress,
+  primary,
+  disabled,
+}: {
+  label: string;
+  onPress: () => void;
+  primary?: boolean;
+  disabled?: boolean;
+}) {
   const theme = useTheme();
   return (
     <Pressable
       onPress={onPress}
+      disabled={disabled}
+      accessibilityRole="button"
+      accessibilityState={{ disabled }}
+      // Not focusable from the keyboard either way, so Enter stays with the answer field.
+      focusable={false}
       style={({ pressed }) => [
         styles.action,
         primary
           ? { backgroundColor: theme.inverseBackground, borderColor: theme.inverseBackground }
           : { borderColor: theme.border },
-        { opacity: pressed ? 0.7 : 1 },
+        { opacity: disabled ? 0.3 : pressed ? 0.7 : 1 },
       ]}>
       <Text style={[styles.actionText, { color: primary ? theme.inverseText : theme.text }]}>{label}</Text>
     </Pressable>
@@ -471,7 +501,7 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },
   underline: { marginHorizontal: spacing.sm, borderRadius: 2 },
   labelPart: { fontWeight: '600' },
-  feedback: { minHeight: 44, gap: spacing.sm },
+  feedback: { gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },

@@ -82,7 +82,8 @@ export function AnswerField({
             {settled}
             {pending ? <Text style={styles.pending}>{pending}</Text> : null}
           </Text>
-          {focused && !readOnly ? <Caret color={textColor} /> : null}
+          {/* Always there, only hidden, so the centred text doesn't jump sideways when it goes. */}
+          {focused && !readOnly ? <Caret color={textColor} /> : <View style={styles.caret} />}
         </View>
       ) : null}
     </View>
