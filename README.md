@@ -99,7 +99,8 @@ JS and TS changes then hot-reload over Metro with no rebuild.
 
 `desktop/` wraps the app's web export in Electron. Download
 `https://github.com/porksphere/hebiebi/releases/download/desktop-nightly/hebiebi-x86_64.AppImage`,
-`chmod +x` it and run it. It's rebuilt on every push to `main` that touches the app, and an installed
+`chmod +x` it and run it. The first run adds it to your app menu, pointing at wherever the file
+is, so put it somewhere it can stay (`~/Applications`, say) first. It's rebuilt on every push to `main` that touches the app, and an installed
 copy updates itself from that Release: it checks shortly after launch and every four hours,
 downloads in the background, and installs the new build when you quit (or right away, if you click
 the notice). If it exits with a libfuse error, install `libfuse2`.

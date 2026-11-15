@@ -10,6 +10,7 @@ import { readFileSync, statSync, writeFileSync } from "node:fs";
 import { writeFile } from "node:fs/promises";
 import { extname, join, normalize, sep } from "node:path";
 import { pathToFileURL } from "node:url";
+import { registerDesktopEntry } from "./desktop-entry.ts";
 import { registerStorage } from "./storage.ts";
 import { startAutoUpdate } from "./updater.ts";
 
@@ -180,6 +181,7 @@ if (!app.requestSingleInstanceLock()) {
       registerStorage();
       allowWaniKaniReads();
       startAutoUpdate();
+      registerDesktopEntry().catch((err: unknown) => console.error("[desktop-entry]", err));
       return openWindow();
     })
     .catch((err: unknown) => {

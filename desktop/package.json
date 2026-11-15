@@ -2,7 +2,7 @@
   "name": "hebiebi-desktop",
   "version": "0.0.0",
   "private": true,
-  "description": "Hebiebi desktop: the app's web export in an Electron window.",
+  "description": "An unofficial client for WaniKani.",
   "main": "build/main.cjs",
   "scripts": {
     "build:web": "bun run scripts/build-web.ts",

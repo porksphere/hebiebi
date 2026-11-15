@@ -31,8 +31,9 @@ grep -qx "version: ${VERSION}" "$FEED" || { echo "::error::$FEED is not for ${VE
 
 BODY="Unofficial WaniKani client for the desktop, built from main on every push. Linux only for now.
 
-**Download:** \`${BASE}/hebiebi-x86_64.AppImage\`, then \`chmod +x\` it and run it. It updates
-itself from here: a new build downloads in the background and installs when you quit.
+**Download:** \`${BASE}/hebiebi-x86_64.AppImage\`, then \`chmod +x\` it and run it. The first run adds it to
+your app menu, so put it somewhere it can stay first (\`~/Applications\`, say). It updates itself
+from here: a new build downloads in the background and installs when you quit.
 
 If it exits with a libfuse error, install \`libfuse2\` (Ubuntu 22.04+ leaves it out), or run it with
 \`--appimage-extract-and-run\`.
