@@ -5,6 +5,7 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
+  Platform,
   Pressable,
   StyleSheet,
   Text,
@@ -15,6 +16,7 @@ import {
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toKana } from 'wanakana';
 
+import { FitText } from '@/components/fit-text';
 import { AnswerField } from '@/components/review/answer-field';
 import { confirmEndSession } from '@/components/review/end-session';
 import { LiftAway, useArrive } from '@/components/review/done-effects';
@@ -23,7 +25,7 @@ import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { haptics } from '@/lib/haptics';
-import { useScreenHotkeys } from '@/lib/hotkeys';
+import { typingInField, useScreenHotkeys } from '@/lib/hotkeys';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
@@ -146,6 +148,9 @@ export default function ReviewScreen() {
       }
     } else {
       haptics.wrong();
+      // Desktop: let go of the field, so the keys are free for F (Item Info) and Enter (Next). On a
+      // phone that would take the keyboard, and its return key with it.
+      if (Platform.OS === 'web') inputRef.current?.blur();
       AccessibilityInfo.announceForAccessibility(
         `Incorrect. ${correctAnswers(item.subject, question.type).join(', ')}`,
       );
@@ -189,11 +194,18 @@ export default function ReviewScreen() {
     });
   }
 
-  // F for Item Info, as on WaniKani, once the answer's graded. Before that it's a letter of the answer.
+  // Once the answer's graded: F for Item Info, as on WaniKani (before that it's a letter of the
+  // answer), and Enter for Next when the field has let go of the keyboard (after a miss). While the
+  // field has it, Enter is the field's own submit, which already goes Next.
   useScreenHotkeys((e) => {
-    if (!graded || e.key.toLowerCase() !== 'f' || e.metaKey || e.ctrlKey || e.altKey) return;
-    e.preventDefault();
-    openInfo();
+    if (!graded || e.metaKey || e.ctrlKey || e.altKey) return;
+    if (e.key.toLowerCase() === 'f') {
+      e.preventDefault();
+      openInfo();
+    } else if (e.key === 'Enter' && !e.repeat && !typingInField()) {
+      e.preventDefault();
+      goNext();
+    }
   });
 
   /**
@@ -356,19 +368,15 @@ export default function ReviewScreen() {
             {/* After a miss, the right answer, big, right under the characters. Positioned out of
                 the layout so the characters and the answer area don't move. */}
             {correction ? (
-              <Text
-                style={[
-                  styles.correction,
-                  { color: theme.text, width: window.width - insets.left - insets.right - spacing.md * 2 },
-                ]}
-                // One line, shrinking to fit: several long meanings get smaller rather than
-                // wrapping down over the answer field.
-                numberOfLines={1}
-                adjustsFontSizeToFit
-                minimumFontScale={0.4}
+              <FitText
+                containerStyle={styles.correction}
+                style={[styles.correctionText, { color: theme.text }]}
+                width={window.width - insets.left - insets.right - spacing.md * 2}
+                // One line, shrinking as far as it takes and never cut short: several long
+                // meanings get smaller rather than wrapping down over the answer field.
                 accessibilityLanguage={isReading ? 'ja' : 'en'}>
                 {correction}
-              </Text>
+              </FitText>
             ) : null}
           </View>
         </View>
@@ -481,7 +489,8 @@ const styles = StyleSheet.create({
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: spacing.md },
   // Centres the lifting characters (absolutely positioned) over the arriving ones.
   heroStack: { alignItems: 'center', justifyContent: 'center' },
-  correction: { position: 'absolute', top: '100%', marginTop: spacing.sm, fontSize: 28, fontWeight: '600', textAlign: 'center' },
+  correction: { position: 'absolute', top: '100%', marginTop: spacing.sm },
+  correctionText: { fontSize: 28, fontWeight: '600', textAlign: 'center' },
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
   label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },

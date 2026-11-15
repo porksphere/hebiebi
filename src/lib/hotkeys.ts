@@ -5,10 +5,19 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useEffect, useRef } from 'react';
 import { Platform } from 'react-native';
 
+// In the capture phase, before the page sees the key: react-native-web's TextInput stops every
+// keydown from bubbling, so a shortcut listening the ordinary way never heard a key pressed in the
+// answer field.
 function onKeyDown(listener: (e: KeyboardEvent) => void) {
   if (Platform.OS !== 'web') return undefined;
-  window.addEventListener('keydown', listener);
-  return () => window.removeEventListener('keydown', listener);
+  window.addEventListener('keydown', listener, { capture: true });
+  return () => window.removeEventListener('keydown', listener, { capture: true });
+}
+
+/** A text field has the keyboard, so Enter is its own (submitting it) rather than a shortcut's. */
+export function typingInField() {
+  const el = typeof document === 'undefined' ? null : document.activeElement;
+  return !!el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA');
 }
 
 /**

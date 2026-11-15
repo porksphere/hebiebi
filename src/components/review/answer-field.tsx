@@ -72,8 +72,7 @@ export function AnswerField({
         placeholderTextColor={placeholderColor}
         caretHidden={masked || readOnly}
         selectionColor={masked ? 'transparent' : textColor}
-        style={[styles.input, { color: masked ? 'transparent' : textColor }]}
-        textAlign="center"
+        style={[styles.input, WEB_NO_FOCUS_RING, { color: masked ? 'transparent' : textColor }]}
         accessibilityLabel={accessibilityLabel}
       />
       {masked ? (
@@ -112,10 +111,14 @@ function Caret({ color }: { color: string }) {
 // which React Native's types no longer list.
 const WEB_KEEP_FOCUS = (Platform.OS === 'web' ? { blurOnSubmit: false } : {}) as object;
 
+// The browser draws its focus ring around a focused field; the page wash already says where you are.
+const WEB_NO_FOCUS_RING = (Platform.OS === 'web' ? { outlineStyle: 'none' } : null) as object | null;
+
 const FONT_SIZE = 24;
 
 const styles = StyleSheet.create({
-  input: { fontSize: FONT_SIZE, paddingVertical: 14, paddingHorizontal: 24, minHeight: 60 },
+  // Centred in the style, not the `textAlign` prop, which react-native-web ignores.
+  input: { fontSize: FONT_SIZE, paddingVertical: 14, paddingHorizontal: 24, minHeight: 60, textAlign: 'center' },
   overlay: {
     ...StyleSheet.absoluteFill,
     flexDirection: 'row',
