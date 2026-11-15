@@ -36,6 +36,9 @@ electronLanguages:
   - en-US
 
 linux:
+  # One PNG per size (scripts/render-icons.ts), each packed into its own hicolor folder. The 1024px
+  # icon above alone lands in a folder no desktop searches.
+  icon: assets/icons
   # AppImage only: it's the Linux target electron-updater can replace in place. A .deb belongs to
   # apt, so it couldn't update itself; add one back if someone wants a menu entry from a package.
   target:
