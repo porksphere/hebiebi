@@ -60,6 +60,11 @@ export default function SettingsScreen() {
               value={prefs.reviews_autoplay_audio}
               onValueChange={(v) => update.mutate({ reviews_autoplay_audio: v })}
             />
+            <Switch
+              label="Show the SRS stage change"
+              value={prefs.reviews_display_srs_indicator}
+              onValueChange={(v) => update.mutate({ reviews_display_srs_indicator: v })}
+            />
             <Row alignment="center">
               <Text>Order</Text>
               <Spacer flexible />

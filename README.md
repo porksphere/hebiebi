@@ -32,6 +32,8 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   - Review order (shuffled or lower levels first) is read fresh from your account for each session.
   - Item info after answering, with mnemonics, hints, readings, audio and context sentences. Parts
     not yet asked stay hidden.
+  - Finishing an item shows where its SRS stage goes, ↑ in green or ↓ in red, as WaniKani does (its
+    "SRS stage change" preference turns it off).
   - A summary at the end showing each item's new SRS stage.
 - Each finished item's review is saved on the phone first and then sent, so a dropped connection
   doesn't lose work. Unsent reviews retry the next time the app opens.

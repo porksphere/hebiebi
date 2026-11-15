@@ -236,6 +236,7 @@ function useSessionController() {
     submitError,
     sync,
     autoplayAudio: user.data?.preferences.reviews_autoplay_audio ?? false,
+    showSrsChange: user.data?.preferences.reviews_display_srs_indicator ?? true,
   };
 }
 

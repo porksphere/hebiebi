@@ -19,3 +19,17 @@ export function stageName(stage: number) {
 }
 
 export const PASSING_STAGE = 5;
+export const BURNED_STAGE = 9;
+
+/**
+ * The stage a review moves an item to, by WaniKani's published rule: all right and it goes up one;
+ * otherwise down by half its wrong answers (meaning and reading together), rounded up, and twice
+ * that from Guru up, but never below Apprentice I. WaniKani's reply to the review carries the same
+ * number (`ending_srs_stage`), but it can come much later; this is for showing it at once.
+ */
+export function nextStage(stage: number, incorrectMeaning: number, incorrectReading: number) {
+  const incorrect = incorrectMeaning + incorrectReading;
+  if (incorrect === 0) return Math.min(stage + 1, BURNED_STAGE);
+  const penalty = stage >= PASSING_STAGE ? 2 : 1;
+  return Math.max(1, stage - Math.ceil(incorrect / 2) * penalty);
+}

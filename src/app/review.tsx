@@ -29,6 +29,7 @@ import { haptics } from '@/lib/haptics';
 import { typingInField, useClickAway, useScreenHotkeys } from '@/lib/hotkeys';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
+import { nextStage, stageName } from '@/lib/srs';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import { useKeyboardSpace } from '@/lib/keyboard-space';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
@@ -347,6 +348,15 @@ export default function ReviewScreen() {
   // takes its place, since then nothing more is coming.
   const progressLead = state.wrappingUp ? 'Wrapping up' : stats.completed > 0 ? `${stats.completed} done` : null;
 
+  // Finishing an item (its last part right) says where its SRS stage goes, as WaniKani does, unless
+  // that's turned off in its preferences: up in green, down in red. A miss earlier on can leave it
+  // where it was (Apprentice I goes no lower); that's red with no arrow.
+  const doneItem = graded?.completedItem;
+  const srsChange =
+    doneItem && session.showSrsChange
+      ? { from: doneItem.srsStage, to: nextStage(doneItem.srsStage, doneItem.incorrectMeaning, doneItem.incorrectReading) }
+      : null;
+
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
   // The page wash: before Enter, the whole screen takes the item type's WaniKani colour with
@@ -455,7 +465,15 @@ export default function ReviewScreen() {
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.7}>
-              {message ?? ' '}
+              {message ?? (srsChange ? '' : ' ')}
+              {srsChange ? (
+                <Text
+                  style={[styles.srsChange, { color: srsChange.to > srsChange.from ? theme.correct : theme.incorrect }]}>
+                  {message ? '   ' : ''}
+                  {srsChange.to > srsChange.from ? '↑ ' : srsChange.to < srsChange.from ? '↓ ' : ''}
+                  {stageName(srsChange.to)}
+                </Text>
+              ) : null}
             </Text>
             {/* Always there, so nothing moves on Enter; they only work once the answer is graded. */}
             <View style={styles.actions}>
@@ -536,6 +554,7 @@ const styles = StyleSheet.create({
   labelPart: { fontWeight: '600' },
   feedback: { gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },
+  srsChange: { fontWeight: '600' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
   actionText: { fontSize: 15, fontWeight: '600' },
