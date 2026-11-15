@@ -1,6 +1,14 @@
 import { createAudioPlayer, setAudioModeAsync, type AudioPlayer } from 'expo-audio';
 
+import { localSetting } from './local-setting';
 import type { PronunciationAudio, Subject } from './wanikani/types';
+
+/** Whether a reading keeps playing over the next item after Next (Settings → Audio), rather than
+ *  being cut off. Kept on the device. */
+const playsThrough = localSetting<'on' | 'off'>('audio-plays-through', ['on', 'off'], 'on');
+export const audioPlaysThrough = () => playsThrough.get() === 'on';
+export const useAudioPlaysThrough = () => playsThrough.use() === 'on';
+export const setAudioPlaysThrough = (on: boolean) => playsThrough.set(on ? 'on' : 'off');
 
 let player: AudioPlayer | null = null;
 let modeSet = false;

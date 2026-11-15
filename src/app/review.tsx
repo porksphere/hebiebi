@@ -24,7 +24,7 @@ import { LiftAway, useArrive } from '@/components/review/done-effects';
 import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
-import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
+import { audioPlaysThrough, playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { haptics } from '@/lib/haptics';
 import { typingInField, useClickAway, useScreenHotkeys } from '@/lib/hotkeys';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
@@ -176,7 +176,8 @@ export default function ReviewScreen() {
     session.next();
     setInput('');
     setMessage(null);
-    stopAudio();
+    // A reading still playing finishes over the next item, unless Settings says to cut it off.
+    if (!audioPlaysThrough()) stopAudio();
     inputRef.current?.focus();
   }
 

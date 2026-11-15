@@ -3,6 +3,7 @@ import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
 
 import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
+import { setAudioPlaysThrough, useAudioPlaysThrough } from '@/lib/audio';
 import { useAuth } from '@/lib/auth';
 import { confirmDestructive } from '@/lib/confirm';
 import { useUpdatePreferences, useUser } from '@/lib/wanikani/queries';
@@ -28,6 +29,7 @@ export default function SettingsScreen() {
   const update = useUpdatePreferences();
   const prefs = user?.preferences;
   const appearance = useAppearance();
+  const playsThrough = useAudioPlaysThrough();
 
   function confirmSignOut() {
     confirmDestructive({
@@ -77,6 +79,13 @@ export default function SettingsScreen() {
             </FieldGroup.SectionFooter>
           </FieldGroup.Section>
         ) : null}
+
+        <FieldGroup.Section title="Audio">
+          <Switch label="Keep playing after Next" value={playsThrough} onValueChange={setAudioPlaysThrough} />
+          <FieldGroup.SectionFooter>
+            <Text>A reading finishes over the next item instead of being cut off. Kept on this device.</Text>
+          </FieldGroup.SectionFooter>
+        </FieldGroup.Section>
 
         <FieldGroup.Section title="Appearance">
           <Row alignment="center">
