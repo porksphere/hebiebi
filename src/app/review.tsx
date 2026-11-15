@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router, Stack, useFocusEffect } from 'expo-router';
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type ReactNode } from 'react';
 import {
   AccessibilityInfo,
   ActivityIndicator,
@@ -242,12 +242,21 @@ export default function ReviewScreen() {
       leading,
       wrapUp = false,
       background = theme.background,
-    }: { leading?: 'minimize' | 'close'; wrapUp?: boolean; background?: string } = {},
+      titleView,
+    }: {
+      leading?: 'minimize' | 'close';
+      wrapUp?: boolean;
+      background?: string;
+      /** Drawn in place of `title`, which is still what's read out. */
+      titleView?: ReactNode;
+    } = {},
   ) => (
     <>
       <Stack.Screen
         options={{
           title,
+          headerTitle: titleView ? () => titleView : undefined,
+          headerTitleAlign: 'center',
           headerShadowVisible: false,
           headerStyle: { backgroundColor: background },
           headerTintColor: theme.text,
@@ -326,6 +335,11 @@ export default function ReviewScreen() {
   const typeName = TYPE_NAMES[item.subject.object];
   const partName = isReading ? 'Reading' : item.subject.object === 'radical' ? 'Name' : 'Meaning';
 
+  // The header: what's left leads, since that's what you want to know mid-session; what's done is
+  // the quiet part before it, and left out at the start, where "0 done" says nothing. Wrapping up
+  // takes its place, since then nothing more is coming.
+  const progressLead = state.wrappingUp ? 'Wrapping up' : stats.completed > 0 ? `${stats.completed} done` : null;
+
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
   // The page wash: before Enter, the whole screen takes the item type's WaniKani colour with
@@ -355,10 +369,16 @@ export default function ReviewScreen() {
             paddingRight: insets.right,
           },
         ]}>
-        {header(state.wrappingUp ? `Wrapping up · ${stats.remaining} left` : `${stats.completed} / ${stats.total}`, {
+        {header(`${progressLead ? `${progressLead}, ` : ''}${stats.remaining} left`, {
           leading: 'minimize',
           wrapUp: true,
           background: screenBg,
+          titleView: (
+            <Text style={[styles.progress, { color: theme.text }]} numberOfLines={1}>
+              {progressLead ? <Text style={{ color: theme.textSecondary }}>{progressLead} · </Text> : null}
+              {stats.remaining} left
+            </Text>
+          ),
         })}
 
         <View
@@ -493,6 +513,7 @@ function ActionButton({
 
 const styles = StyleSheet.create({
   root: { flex: 1 },
+  progress: { fontSize: 17, fontWeight: '600' },
   center: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: spacing.md, padding: spacing.lg },
   centerText: { fontSize: 17, textAlign: 'center' },
   pill: { borderWidth: 1, borderRadius: 999, paddingHorizontal: 20, paddingVertical: 10 },
