@@ -148,7 +148,13 @@ async function openWindow(): Promise<void> {
       `JSON.stringify({ title: document.title, nodes: document.body.querySelectorAll('*').length, text: (document.body.innerText || '').slice(0, 300) })`,
     );
     console.log(`[capture] ${probe}`);
-    await writeFile(process.env.HEBIEBI_CAPTURE, (await win.webContents.capturePage()).toPNG());
+    // The probe is the check; the screenshot is for looking at. A display with no GPU (CI's xvfb)
+    // can refuse it with UnknownVizError while the page itself rendered fine.
+    try {
+      await writeFile(process.env.HEBIEBI_CAPTURE, (await win.webContents.capturePage()).toPNG());
+    } catch (err) {
+      console.warn("[capture] no screenshot:", err);
+    }
     app.exit(JSON.parse(probe).nodes > 10 ? 0 : 1);
   }
 }

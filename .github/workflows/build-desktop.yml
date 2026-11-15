@@ -98,7 +98,7 @@ jobs:
         timeout-minutes: 5
         env:
           HEBIEBI_CAPTURE: ${{ runner.temp }}/launch.png
-        run: xvfb-run -a ./node_modules/.bin/electron . --no-sandbox
+        run: xvfb-run -a ./node_modules/.bin/electron . --no-sandbox --disable-gpu
 
       - name: Build the AppImage
         run: ./node_modules/.bin/electron-builder --linux --publish never
