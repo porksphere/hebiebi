@@ -1,8 +1,7 @@
 // Keeps search-index.ts's slim copy of every subject on the phone. Built once (about ten requests
 // of 1,000 subjects), then topped up with only what changed since, using `updated_after`.
 
-import { File, Paths } from 'expo-file-system';
-
+import { documentFile } from '../document-file';
 import type { WaniKaniClient } from './client';
 import { toSearchEntry, type SearchEntry } from './search-index';
 
@@ -16,7 +15,7 @@ interface CachedIndex {
   entries: SearchEntry[];
 }
 
-const file = () => new File(Paths.document, 'search-index.json');
+const file = documentFile('search-index.json');
 
 /** What's on the phone, if anything; synchronous so a screen can show it on its first frame. */
 export function readCachedIndex(): SearchEntry[] | undefined {
@@ -25,9 +24,9 @@ export function readCachedIndex(): SearchEntry[] | undefined {
 
 function readCache(): CachedIndex | null {
   try {
-    const f = file();
-    if (!f.exists) return null;
-    const cached = JSON.parse(f.textSync()) as CachedIndex;
+    const saved = file.read();
+    if (!saved) return null;
+    const cached = JSON.parse(saved) as CachedIndex;
     return cached.version === VERSION ? cached : null;
   } catch {
     return null;
@@ -55,6 +54,6 @@ export async function syncIndex(client: WaniKaniClient): Promise<SearchEntry[]> 
   const entries = [...byId.values()];
   const next: CachedIndex = { version: VERSION, syncedAt: startedAt, entries };
   // Not saved means it's rebuilt next time; nothing worse.
-  file().write(JSON.stringify(next)).catch(() => {});
+  file.write(JSON.stringify(next)).catch(() => {});
   return entries;
 }

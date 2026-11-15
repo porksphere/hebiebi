@@ -1,0 +1,145 @@
+name: Build desktop (Linux AppImage)
+
+# Builds the Electron app (desktop/) on every push to main that can change it and publishes it to
+# the `desktop-nightly` Release, which is also the feed installed copies update themselves from:
+#   https://github.com/<owner>/hebiebi/releases/download/desktop-nightly/hebiebi-x86_64.AppImage
+#
+# Pull requests build too, and keep the AppImage as a run artifact, but don't publish.
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'app.json'
+      - 'package.json'
+      - 'bun.lock'
+      - 'desktop/**'
+      - '.github/workflows/build-desktop.yml'
+      - '.github/scripts/compute-build-version.sh'
+      - '.github/scripts/publish-desktop-channel.sh'
+      - '!**/*.md'
+      - '!**/*.test.ts'
+  pull_request:
+    paths:
+      - 'src/**'
+      - 'assets/**'
+      - 'app.json'
+      - 'package.json'
+      - 'bun.lock'
+      - 'desktop/**'
+      - '.github/workflows/build-desktop.yml'
+      - '.github/scripts/compute-build-version.sh'
+      - '.github/scripts/publish-desktop-channel.sh'
+      - '!**/*.md'
+      - '!**/*.test.ts'
+
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.stamp.outputs.version }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # The version counts commits back to the last `expo.version` change.
+          fetch-depth: 0
+
+      # Bun and Node at the versions pinned in mise.toml.
+      - uses: jdx/mise-action@v5
+
+      # Only main writes caches; other refs restore main's newest read-only (as build-ios does).
+      - name: Restore Bun modules
+        uses: actions/cache/restore@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-desktop-${{ hashFiles('bun.lock', 'desktop/bun.lock') }}
+          restore-keys: bun-desktop-
+
+      # desktop/ is a package of its own, so the iOS build never downloads Electron.
+      - name: Install dependencies
+        run: |
+          bun install --frozen-lockfile
+          cd desktop && bun install --frozen-lockfile
+
+      - name: Typecheck the shell
+        run: bun run typecheck
+        working-directory: desktop
+
+      - name: Compute version
+        id: ver
+        run: echo "full=$(bash .github/scripts/compute-build-version.sh)" >> "$GITHUB_OUTPUT"
+
+      # `X.Y.Z.N` → `X.Y.Z-N`, the semver electron-builder and the updater want (see the script).
+      - name: Stamp version
+        id: stamp
+        working-directory: desktop
+        env:
+          VERSION_INPUT: ${{ steps.ver.outputs.full }}
+        run: echo "version=$(bun run --silent stamp-version)" >> "$GITHUB_OUTPUT"
+
+      - name: Build the web export and the main process
+        run: bun run build
+        working-directory: desktop
+
+      # Proves the window renders the app rather than a blank page. A virtual display, and no
+      # sandbox: ubuntu-24.04 restricts the unprivileged user namespaces Electron's sandbox needs.
+      - name: Launch check
+        working-directory: desktop
+        timeout-minutes: 5
+        env:
+          HEBIEBI_CAPTURE: ${{ runner.temp }}/launch.png
+        run: xvfb-run -a ./node_modules/.bin/electron . --no-sandbox
+
+      - name: Build the AppImage
+        run: ./node_modules/.bin/electron-builder --linux --publish never
+        working-directory: desktop
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: hebiebi-desktop-linux
+          path: |
+            desktop/dist/hebiebi-x86_64.AppImage
+            desktop/dist/latest-linux.yml
+          if-no-files-found: error
+
+      - name: Save Bun modules
+        if: github.ref == 'refs/heads/main'
+        uses: actions/cache/save@v4
+        with:
+          path: ~/.bun/install/cache
+          key: bun-desktop-${{ hashFiles('bun.lock', 'desktop/bun.lock') }}
+
+  publish:
+    needs: build
+    if: github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    # Never cancelled half way: that could leave the feed describing a file that isn't beside it.
+    concurrency:
+      group: desktop-nightly-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: hebiebi-desktop-linux
+          path: ${{ runner.temp }}/desktop
+
+      - name: Publish to the desktop-nightly Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: >-
+          bash .github/scripts/publish-desktop-channel.sh
+          "$RUNNER_TEMP/desktop" "${{ needs.build.outputs.version }}" "$GITHUB_SHA"

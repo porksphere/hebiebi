@@ -76,5 +76,10 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   widget layout can't use anything from outside its own function. `patches/` makes expo-widgets
   use the app group AltStore renames at install, and CI signs the entitlements in so AltStore
   sets that group up; don't drop either.
+- Desktop: `desktop/` is an Electron shell (its own package and lockfile) around the web export,
+  Linux AppImage only, self-updating from the `desktop-nightly` Release via electron-updater. Web has
+  no expo-file-system or SecureStore: use `documentFile()` (`src/lib/document-file.ts`) and
+  `tokenStore`, whose `.web.ts` versions go through the shell's `window.hebiebiDesktop`, not those
+  modules directly.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.

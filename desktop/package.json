@@ -1,0 +1,35 @@
+{
+  "name": "hebiebi-desktop",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Hebiebi desktop: the app's web export in an Electron window.",
+  "main": "build/main.cjs",
+  "scripts": {
+    "build:web": "bun run scripts/build-web.ts",
+    "build:main": "bun run scripts/build-main.ts",
+    "build": "bun run build:web && bun run build:main",
+    "start": "bun run build && electron .",
+    "dev": "bun run build:main && HEBIEBI_DEV_URL=http://localhost:8081 electron .",
+    "stamp-version": "bun run scripts/stamp-version.ts",
+    "typecheck": "tsc --noEmit",
+    "dist:linux": "bun run build && electron-builder --linux --publish never"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/node": "^22.10.0",
+    "electron": "44.9.3",
+    "electron-builder": "^26.15.3",
+    "electron-updater": "^6.8.9",
+    "typescript": "~6.0.3"
+  },
+  "author": {
+    "name": "porksphere",
+    "email": "porksphere@users.noreply.github.com"
+  },
+  "homepage": "https://github.com/porksphere/hebiebi",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/porksphere/hebiebi.git"
+  },
+  "desktopName": "hebiebi.desktop"
+}

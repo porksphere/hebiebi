@@ -1,11 +1,9 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 
+import { tokenStore } from './token-store';
 import { createClient, type WaniKaniClient } from './wanikani/client';
 import type { User } from './wanikani/types';
-
-const TOKEN_KEY = 'wanikani.token';
 
 type AuthState =
   | { status: 'loading' }
@@ -32,7 +30,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [state, setState] = useState<AuthState>({ status: 'loading' });
 
   useEffect(() => {
-    SecureStore.getItemAsync(TOKEN_KEY)
+    tokenStore
+      .get()
       .then((token) =>
         setState(token ? { status: 'signedIn', token, client: createClient(token) } : { status: 'signedOut' }),
       )
@@ -44,7 +43,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       const token = normalizeToken(input);
       const client = createClient(token);
       const user = await client.getUser();
-      await SecureStore.setItemAsync(TOKEN_KEY, token);
+      await tokenStore.set(token);
       queryClient.clear();
       queryClient.setQueryData(['user'], user);
       setState({ status: 'signedIn', token, client });
@@ -54,7 +53,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   );
 
   const signOut = useCallback(async () => {
-    await SecureStore.deleteItemAsync(TOKEN_KEY);
+    await tokenStore.delete();
     queryClient.clear();
     setState({ status: 'signedOut' });
   }, [queryClient]);

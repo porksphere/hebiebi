@@ -7,16 +7,18 @@
 // for that size from its first frame. Only the first time in a new window size, or when a taller
 // keyboard turns up (switching to the Japanese keyboard, say), does it move, once.
 
-import { File, Paths } from 'expo-file-system';
 import { useEffect, useState } from 'react';
 import { Dimensions, Keyboard, LayoutAnimation, useWindowDimensions, type KeyboardEvent } from 'react-native';
 
+import { documentFile } from './document-file';
+
 // v2: v1 could learn a wrong height mid-rotation, so its entries are dropped.
-const file = new File(Paths.document, 'keyboard-heights-v2.json');
+const file = documentFile('keyboard-heights-v2.json');
 
 let heights: Record<string, number> = {};
 try {
-  if (file.exists) heights = JSON.parse(file.textSync()) as Record<string, number>;
+  const saved = file.read();
+  if (saved) heights = JSON.parse(saved) as Record<string, number>;
 } catch {
   heights = {};
 }
@@ -59,7 +61,7 @@ export function useKeyboardSpace() {
       }
       heights = { ...heights, [k]: height };
       setLearned(heights);
-      Promise.resolve(file.write(JSON.stringify(heights))).catch(() => {});
+      file.write(JSON.stringify(heights)).catch(() => {});
     }
     const subs = [Keyboard.addListener('keyboardWillShow', onShow), Keyboard.addListener('keyboardWillChangeFrame', onShow)];
     return () => subs.forEach((s) => s.remove());

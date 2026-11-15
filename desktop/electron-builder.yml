@@ -1,0 +1,49 @@
+# electron-builder config. What ships is `build/` only: the bundled main process and preload
+# (scripts/build-main.ts, which inlines electron-updater, so no node_modules go in) and the Expo web
+# export (scripts/build-web.ts). Not signed; Linux doesn't ask for it.
+#
+# `version` comes from package.json, which scripts/stamp-version.ts rewrites in CI.
+
+appId: com.porksphere.hebiebi
+productName: Hebiebi
+executableName: hebiebi
+copyright: porksphere
+
+# The feed electron-updater reads (src/updater.ts). CI builds with `--publish never` and uploads
+# itself (.github/scripts/publish-desktop-channel.sh); this is still what makes electron-builder
+# write latest-linux.yml beside the AppImage, and app-update.yml into the app. `generic`, not
+# `github`: that provider follows the repo's "latest" release, while desktop-nightly is a rolling
+# Release at a fixed URL that always has the feed.
+publish:
+  provider: generic
+  url: https://github.com/porksphere/hebiebi/releases/download/desktop-nightly
+
+# Builds are versioned `X.Y.Z-N`, and electron-builder would otherwise read the `-N` as an update
+# channel's name and write (and have the app look for) `N-linux.yml`, which no later build writes.
+detectUpdateChannel: false
+
+directories:
+  output: dist
+
+files:
+  - build/**/*
+  - package.json
+
+icon: ../assets/images/icon.png
+
+# Chromium's UI strings in 55 languages are a big share of the download; the app has none of its own.
+electronLanguages:
+  - en-US
+
+linux:
+  # AppImage only: it's the Linux target electron-updater can replace in place. A .deb belongs to
+  # apt, so it couldn't update itself; add one back if someone wants a menu entry from a package.
+  target:
+    - AppImage
+  category: Education
+  syncDesktopName: true
+
+# A fixed name, set here rather than renamed afterwards: latest-linux.yml records the file name it
+# was written for, and the updater downloads that name.
+appImage:
+  artifactName: hebiebi-x86_64.${ext}

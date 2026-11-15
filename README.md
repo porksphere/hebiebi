@@ -95,12 +95,41 @@ keeps your data and sign-in, and they use only one of a free Apple ID's three ap
 
 JS and TS changes then hot-reload over Metro with no rebuild.
 
+### Desktop (Linux)
+
+`desktop/` wraps the app's web export in Electron. Download
+`https://github.com/porksphere/hebiebi/releases/download/desktop-nightly/hebiebi-x86_64.AppImage`,
+`chmod +x` it and run it. It's rebuilt on every push to `main` that touches the app, and an installed
+copy updates itself from that Release: it checks shortly after launch and every four hours,
+downloads in the background, and installs the new build when you quit (or right away, if you click
+the notice). If it exits with a libfuse error, install `libfuse2`.
+
+```bash
+cd desktop
+bun install
+bun run start        # export the web build, bundle the shell, open it
+bun run dev          # the shell on Metro's web server (run `bun run web` at the root first)
+bun run dist:linux   # the AppImage, in desktop/dist
+```
+
+On web the app has no expo-file-system or SecureStore, so the shell provides both
+(`desktop/src/storage.ts`): the app's small files go in its data folder, and the token is encrypted
+with the OS keyring (Electron's `safeStorage`). `src/lib/document-file.web.ts` and
+`token-store.web.ts` pick that up, or fall back to localStorage in a plain browser. A dev run keeps
+its data apart from the installed app's (`~/.config/hebiebi-desktop-dev`).
+
+The shell also adds CORS headers to WaniKani's public item pages, which the app reads for radical
+illustrations and Patterns of Use; a browser would refuse them otherwise.
+
 ### CI
 
 - `checks.yml`: typecheck, lint and tests on Linux, for every push and PR.
 - `build-ios.yml`: builds a Release IPA on macOS for pushes to `main` and for PRs. Only `main`
   publishes it.
 - `build-ios-devclient.yml`: builds and publishes the dev client when run manually.
+- `build-desktop.yml`: builds the Linux AppImage for pushes to `main` and for PRs, checks that the
+  window renders, and on `main` publishes it with its update feed (`latest-linux.yml`) to the
+  `desktop-nightly` Release.
 - `build-ios-reusable.yml`: the shared build. Its caches (Bun, CocoaPods, and ccache with React
   Native's Xcode 26 wrapper fix) come from comical-app. Only `main` writes caches; PRs restore
   main's read-only.

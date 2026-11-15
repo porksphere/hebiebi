@@ -3,8 +3,7 @@
 // still records when the thing actually happened. Used for reviews (review/submissions.ts) and
 // finished lessons (lessons/starts.ts).
 
-import { File, Paths } from 'expo-file-system';
-
+import { documentFile, type DocumentFile } from './document-file';
 import { WaniKaniError, type WaniKaniClient } from './wanikani/client';
 
 export interface OutboxFlushResult<T, R> {
@@ -21,15 +20,16 @@ export function createOutbox<T, R>(
   send: (client: WaniKaniClient, item: T) => Promise<R>,
 ) {
   const tag = fileName.replace(/\.json$/, '');
-  let file: File | null = null;
+  let file: DocumentFile | null = null;
   let pending: T[] | null = null;
   let flushing: Promise<OutboxFlushResult<T, R>> | null = null;
 
   function load(): T[] {
     if (pending) return pending;
-    file ??= new File(Paths.document, fileName);
+    file ??= documentFile(fileName);
     try {
-      pending = file.exists ? (JSON.parse(file.textSync()) as T[]) : [];
+      const saved = file.read();
+      pending = saved ? (JSON.parse(saved) as T[]) : [];
     } catch {
       pending = [];
     }

@@ -1,0 +1,3 @@
+# Flat node_modules: electron-builder walks node_modules to resolve what it packages.
+[install]
+linker = "hoisted"

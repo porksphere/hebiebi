@@ -5,8 +5,7 @@
 // on undocumented HTML, so every failure just means nothing extra. Illustration SVGs themselves are
 // cached by expo-image.
 
-import { File, Paths } from 'expo-file-system';
-
+import { documentFile, type DocumentFile } from '../document-file';
 import { parseMnemonicImage, type MnemonicImage } from './mnemonic-image';
 import { parsePatternsOfUse, type PatternOfUse } from './patterns-of-use';
 import type { Subject } from './types';
@@ -24,15 +23,16 @@ const NOTHING: SubjectPageExtras = { image: null, patterns: [] };
 
 // --- Device cache -----------------------------------------------------------------------------
 
-let cacheFile: File | null = null;
+let cacheFile: DocumentFile | null = null;
 let cache: Record<string, CacheEntry> | null = null;
 
 function loadCache() {
   if (cache) return cache;
   // The file name predates patterns, when only illustrations were kept.
-  cacheFile ??= new File(Paths.document, 'mnemonic-images.json');
+  cacheFile ??= documentFile('mnemonic-images.json');
   try {
-    cache = cacheFile.exists ? (JSON.parse(cacheFile.textSync()) as Record<string, CacheEntry>) : {};
+    const saved = cacheFile.read();
+    cache = saved ? (JSON.parse(saved) as Record<string, CacheEntry>) : {};
   } catch {
     cache = {};
   }
