@@ -194,14 +194,21 @@ export default function ReviewScreen() {
     });
   }
 
-  // Once the answer's graded: F for Item Info, as on WaniKani (before that it's a letter of the
-  // answer), and Enter for Next when the field has let go of the keyboard (after a miss). While the
-  // field has it, Enter is the field's own submit, which already goes Next.
+  // Once the answer's graded (before that, letters are the answer's): F for Item Info, as on
+  // WaniKani; C to hear the reading, once it's no secret (this was the reading, or the reading's
+  // already been answered), and only vocabulary has any; and Enter for Next when the field has let
+  // go of the keyboard (after a miss). While the field has it, Enter is the field's own submit,
+  // which already goes Next.
   useScreenHotkeys((e) => {
     if (!graded || e.metaKey || e.ctrlKey || e.altKey) return;
-    if (e.key.toLowerCase() === 'f') {
+    const letter = e.key.toLowerCase();
+    if (letter === 'f') {
       e.preventDefault();
       openInfo();
+    } else if (letter === 'c') {
+      e.preventDefault();
+      const audio = item && (question?.type === 'reading' || item.readingDone) ? pronunciations(item.subject)[0] : null;
+      if (audio) playAudio(audio.url);
     } else if (e.key === 'Enter' && !e.repeat && !typingInField()) {
       e.preventDefault();
       goNext();
