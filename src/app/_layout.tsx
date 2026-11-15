@@ -5,6 +5,7 @@ import { useEffect } from 'react';
 import { AppState, Platform } from 'react-native';
 
 import { AuthProvider, useAuth } from '@/lib/auth';
+import { useEscapeGoesBack } from '@/lib/hotkeys';
 import { ReviewSessionProvider } from '@/lib/review/use-review-session';
 import { Toaster } from '@/components/toast';
 import { showToast } from '@/lib/toast';
@@ -60,6 +61,7 @@ export default function RootLayout() {
 function RootNavigator() {
   const { state, signOut } = useAuth();
   const theme = useTheme();
+  useEscapeGoesBack();
 
   useEffect(() => {
     if (state.status !== 'loading') SplashScreen.hideAsync();

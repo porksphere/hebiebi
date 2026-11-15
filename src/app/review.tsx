@@ -23,6 +23,7 @@ import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { haptics } from '@/lib/haptics';
+import { useScreenHotkeys } from '@/lib/hotkeys';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
@@ -187,6 +188,13 @@ export default function ReviewScreen() {
       params: { id: String(item.subject.id), ...(hide ? { hide } : {}) },
     });
   }
+
+  // F for Item Info, as on WaniKani, once the answer's graded. Before that it's a letter of the answer.
+  useScreenHotkeys((e) => {
+    if (!graded || e.key.toLowerCase() !== 'f' || e.metaKey || e.ctrlKey || e.altKey) return;
+    e.preventDefault();
+    openInfo();
+  });
 
   /**
    * Closes the screen. Mid-session that's minimising: the session carries on from the home screen

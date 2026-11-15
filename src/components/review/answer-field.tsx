@@ -1,6 +1,7 @@
 import { useEffect, useState, type Ref } from 'react';
 import {
   Animated,
+  Platform,
   StyleSheet,
   Text,
   TextInput,
@@ -60,6 +61,7 @@ export function AnswerField({
         onFocus={() => setFocused(true)}
         onBlur={() => setFocused(false)}
         submitBehavior="submit"
+        {...WEB_KEEP_FOCUS}
         autoFocus
         autoCapitalize="none"
         autoCorrect={false}
@@ -104,6 +106,11 @@ function Caret({ color }: { color: string }) {
   }, [opacity]);
   return <Animated.View style={[styles.caret, { backgroundColor: color, opacity }]} />;
 }
+
+// react-native-web ignores `submitBehavior` and blurs the field after every Enter, so the next
+// Enter (Next, then the next answer) would go nowhere. It still reads the older `blurOnSubmit`,
+// which React Native's types no longer list.
+const WEB_KEEP_FOCUS = (Platform.OS === 'web' ? { blurOnSubmit: false } : {}) as object;
 
 const FONT_SIZE = 24;
 

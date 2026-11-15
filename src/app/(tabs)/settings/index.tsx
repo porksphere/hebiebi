@@ -11,9 +11,9 @@ import { useTheme } from '@/theme';
 function InfoRow({ label, value }: { label: string; value: string }) {
   const theme = useTheme();
   return (
-    <Row>
+    <Row alignment="center">
       <Text>{label}</Text>
-      <Spacer />
+      <Spacer flexible />
       <Text textStyle={{ color: theme.textSecondary }}>{value}</Text>
     </Row>
   );
@@ -56,9 +56,9 @@ export default function SettingsScreen() {
               value={prefs.reviews_autoplay_audio}
               onValueChange={(v) => update.mutate({ reviews_autoplay_audio: v })}
             />
-            <Row>
+            <Row alignment="center">
               <Text>Order</Text>
-              <Spacer />
+              <Spacer flexible />
               <Picker
                 selectedValue={prefs.reviews_presentation_order}
                 onValueChange={(v) => update.mutate({ reviews_presentation_order: v })}>
@@ -77,9 +77,9 @@ export default function SettingsScreen() {
         ) : null}
 
         <FieldGroup.Section title="Appearance">
-          <Row>
+          <Row alignment="center">
             <Text>Theme</Text>
-            <Spacer />
+            <Spacer flexible />
             <Picker selectedValue={appearance} onValueChange={(v) => setAppearance(v as AppearanceChoice)}>
               <Picker.Item label="System" value="auto" />
               <Picker.Item label="Light" value="light" />
