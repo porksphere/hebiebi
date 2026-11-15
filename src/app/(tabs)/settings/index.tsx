@@ -1,10 +1,10 @@
 import { Button, FieldGroup, Host, Picker, Row, Spacer, Switch, Text } from '@expo/ui';
 import Constants from 'expo-constants';
 import * as WebBrowser from 'expo-web-browser';
-import { Alert } from 'react-native';
 
 import { setAppearance, useAppearance, type AppearanceChoice } from '@/lib/appearance';
 import { useAuth } from '@/lib/auth';
+import { confirmDestructive } from '@/lib/confirm';
 import { useUpdatePreferences, useUser } from '@/lib/wanikani/queries';
 import { useTheme } from '@/theme';
 
@@ -30,10 +30,12 @@ export default function SettingsScreen() {
   const appearance = useAppearance();
 
   function confirmSignOut() {
-    Alert.alert('Sign out?', 'Your token will be removed from this device.', [
-      { text: 'Cancel', style: 'cancel' },
-      { text: 'Sign Out', style: 'destructive', onPress: () => signOut() },
-    ]);
+    confirmDestructive({
+      title: 'Sign out?',
+      message: 'Your token will be removed from this device.',
+      confirm: 'Sign Out',
+      onConfirm: () => signOut(),
+    });
   }
 
   return (

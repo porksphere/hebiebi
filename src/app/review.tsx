@@ -17,6 +17,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { toKana } from 'wanakana';
 
 import { FitText } from '@/components/fit-text';
+import { HeaderActions } from '@/components/header-actions';
 import { AnswerField } from '@/components/review/answer-field';
 import { confirmEndSession } from '@/components/review/end-session';
 import { LiftAway, useArrive } from '@/components/review/done-effects';
@@ -263,26 +264,31 @@ export default function ReviewScreen() {
         }}
       />
       {leading ? (
-        <Stack.Toolbar placement="left">
-          {leading === 'minimize' ? (
-            <Stack.Toolbar.Button icon="chevron.down" accessibilityLabel="Minimize" onPress={dismiss} />
-          ) : (
-            <Stack.Toolbar.Button icon="xmark" accessibilityLabel="Close" onPress={dismiss} />
-          )}
-        </Stack.Toolbar>
+        <HeaderActions
+          placement="left"
+          actions={[
+            leading === 'minimize'
+              ? { label: 'Minimize', icon: 'chevron.down', webIcon: 'keyboard_arrow_down', onPress: dismiss }
+              : { label: 'Close', icon: 'xmark', webIcon: 'close', onPress: dismiss },
+          ]}
+        />
       ) : null}
       {wrapUp && state ? (
-        <Stack.Toolbar placement="right">
-          {/* Wrap up: finish the items in play, then stop. The title says so while it's on. */}
-          <Stack.Toolbar.Button
-            icon="flag.checkered"
-            selected={state.wrappingUp}
-            accessibilityLabel={state.wrappingUp ? 'Stop wrapping up' : 'Wrap up'}
-            onPress={session.toggleWrapUp}
-          />
-          {/* Ending, beside it: the chevron on the left only puts the session away. */}
-          <Stack.Toolbar.Button icon="xmark" accessibilityLabel="End session" onPress={endSession} />
-        </Stack.Toolbar>
+        <HeaderActions
+          placement="right"
+          actions={[
+            // Wrap up: finish the items in play, then stop. The title says so while it's on.
+            {
+              label: state.wrappingUp ? 'Stop wrapping up' : 'Wrap up',
+              icon: 'flag.checkered',
+              webIcon: 'sports_score',
+              selected: state.wrappingUp,
+              onPress: session.toggleWrapUp,
+            },
+            // Ending, beside it: the chevron on the left only puts the session away.
+            { label: 'End session', icon: 'xmark', webIcon: 'close', onPress: endSession },
+          ]}
+        />
       ) : null}
     </>
   );

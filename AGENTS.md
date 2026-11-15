@@ -80,6 +80,8 @@ Hebiebi: an unofficial WaniKani client. iOS first; Android should keep working b
   Linux AppImage only, self-updating from the `desktop-nightly` Release via electron-updater. Web has
   no expo-file-system or SecureStore: use `documentFile()` (`src/lib/document-file.ts`) and
   `tokenStore`, whose `.web.ts` versions go through the shell's `window.hebiebiDesktop`, not those
-  modules directly.
+  modules directly. Web also draws no `Stack.Toolbar` and its `Alert.alert` does nothing: use
+  `HeaderActions` (`src/components/header-actions.tsx`) and `confirmDestructive` (`src/lib/confirm.ts`).
+  Keyboard shortcuts live in `src/lib/hotkeys.ts`.
 - Builds: no EAS. GitHub Actions runs `expo prebuild` and `xcodebuild` and publishes AltStore
   sources (see README). Never commit `ios/` or `android/`.

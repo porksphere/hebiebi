@@ -2,6 +2,7 @@ import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 
+import { HeaderActions } from '@/components/header-actions';
 import { useKeyboardSpace } from '@/lib/keyboard-space';
 import { useReviewSession } from '@/lib/review/use-review-session';
 import { useSaveStudyMaterial, useSubjectProgress } from '@/lib/wanikani/queries';
@@ -94,11 +95,10 @@ export default function EditMineScreen() {
   return (
     <>
       <Stack.Screen options={{ title: TITLES[field] }} />
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button variant="done" disabled={!ready || !changed || save.isPending} onPress={onSave}>
-          Save
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      <HeaderActions
+        placement="right"
+        actions={[{ label: 'Save', done: true, disabled: !ready || !changed || save.isPending, onPress: onSave }]}
+      />
       {!ready ? (
         <View style={[styles.center, { backgroundColor: theme.background }]}>
           <ActivityIndicator color={theme.textSecondary} />

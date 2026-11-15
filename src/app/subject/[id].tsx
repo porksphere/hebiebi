@@ -1,6 +1,7 @@
 import { Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
+import { HeaderActions } from '@/components/header-actions';
 import { SubjectDetail, type HiddenPart } from '@/components/subject/subject-detail';
 import { useSubject } from '@/lib/wanikani/queries';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -23,12 +24,8 @@ export default function SubjectScreen() {
   return (
     <>
       <Stack.Screen options={{ title: subject.data ? TYPE_NAMES[subject.data.object] : '' }} />
-      <Stack.Toolbar placement="right">
-        {/* Closes the whole sheet, however deep into related subjects it has gone. */}
-        <Stack.Toolbar.Button variant="done" onPress={() => navigation.getParent()?.goBack()}>
-          Done
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
+      {/* Closes the whole sheet, however deep into related subjects it has gone. */}
+      <HeaderActions placement="right" actions={[{ label: 'Done', done: true, onPress: () => navigation.getParent()?.goBack() }]} />
       {subject.data ? (
         <ScrollView style={{ backgroundColor: theme.background }} contentInsetAdjustmentBehavior="automatic">
           <SubjectDetail subject={subject.data} hide={hidden} />

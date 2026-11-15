@@ -1,5 +1,4 @@
-import { Alert } from 'react-native';
-
+import { confirmDestructive } from '@/lib/confirm';
 import { hasPartialAnswers, type ReviewSession } from '@/lib/review/use-review-session';
 
 /**
@@ -8,12 +7,11 @@ import { hasPartialAnswers, type ReviewSession } from '@/lib/review/use-review-s
  */
 export function confirmEndSession(session: ReviewSession, end: () => void = session.end) {
   if (!hasPartialAnswers(session.state)) return end();
-  Alert.alert(
-    'End this session?',
-    'Finished items are already saved. Items you’ve only partly answered will come back next time.',
-    [
-      { text: 'Keep Going', style: 'cancel' },
-      { text: 'End Session', style: 'destructive', onPress: end },
-    ],
-  );
+  confirmDestructive({
+    title: 'End this session?',
+    message: 'Finished items are already saved. Items you’ve only partly answered will come back next time.',
+    confirm: 'End Session',
+    cancel: 'Keep Going',
+    onConfirm: end,
+  });
 }
