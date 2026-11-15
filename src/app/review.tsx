@@ -5,6 +5,7 @@ import {
   AccessibilityInfo,
   ActivityIndicator,
   Animated,
+  Easing,
   Platform,
   Pressable,
   StyleSheet,
@@ -401,6 +402,7 @@ export default function ReviewScreen() {
         <View
           style={styles.hero}
           onLayout={__DEV__ ? (e) => logLayout('hero', e.nativeEvent.layout) : undefined}>
+          {srsChange && doneItem ? <SrsToast key={doneItem.assignmentId} {...srsChange} /> : null}
           <View style={styles.heroStack}>
             {/* Hold the characters to take back an answer: slow on purpose, so it's never an accident. */}
             <HoldToUndo enabled={!!graded} onUndo={undo} ringColor={theme.surface}>
@@ -465,15 +467,7 @@ export default function ReviewScreen() {
               numberOfLines={1}
               adjustsFontSizeToFit
               minimumFontScale={0.7}>
-              {message ?? (srsChange ? '' : ' ')}
-              {srsChange ? (
-                <Text
-                  style={[styles.srsChange, { color: srsChange.to > srsChange.from ? theme.correct : theme.incorrect }]}>
-                  {message ? '   ' : ''}
-                  {srsChange.to > srsChange.from ? '↑ ' : srsChange.to < srsChange.from ? '↓ ' : ''}
-                  {stageName(srsChange.to)}
-                </Text>
-              ) : null}
+              {message ?? ' '}
             </Text>
             {/* Always there, so nothing moves on Enter; they only work once the answer is graded. */}
             <View style={styles.actions}>
@@ -504,6 +498,41 @@ function closeEnough(result: CheckResult) {
  * Before the answer is graded both are disabled: a faint outline and quiet text. Once they work,
  * Next fills in and Item Info's outline and text go to full strength.
  */
+/**
+ * Where a finished item's SRS stage went, floating at the top of the screen like a toast: over the
+ * layout rather than in it, so its coming and going moves nothing. Up in green, down in red (red
+ * with no arrow when an earlier miss left it where it was). Stays until Next.
+ */
+function SrsToast({ from, to }: { from: number; to: number }) {
+  const theme = useTheme();
+  const [t] = useState(() => new Animated.Value(0));
+  const up = to > from;
+  const down = to < from;
+  useEffect(() => {
+    Animated.timing(t, { toValue: 1, duration: 200, easing: Easing.out(Easing.quad), useNativeDriver: true }).start();
+    AccessibilityInfo.announceForAccessibility(`${up ? 'Up to' : down ? 'Down to' : 'Stays at'} ${stageName(to)}`);
+  }, [t, up, down, to]);
+  const color = up ? theme.correct : theme.incorrect;
+  return (
+    <View pointerEvents="none" style={styles.srsToastLayer}>
+      <Animated.View
+        style={[
+          styles.srsToast,
+          {
+            borderColor: color,
+            opacity: t,
+            transform: [{ translateY: t.interpolate({ inputRange: [0, 1], outputRange: [-8, 0] }) }],
+          },
+        ]}>
+        <Text style={[styles.srsToastText, { color }]}>
+          {up ? '↑ ' : down ? '↓ ' : ''}
+          {stageName(to)}
+        </Text>
+      </Animated.View>
+    </View>
+  );
+}
+
 function ActionButton({
   label,
   onPress,
@@ -553,8 +582,18 @@ const styles = StyleSheet.create({
   label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },
   labelPart: { fontWeight: '600' },
   feedback: { gap: spacing.sm },
-  message: { fontSize: 15, textAlign: 'center' },
-  srsChange: { fontWeight: '600' },
+  // A fixed height, not just a space when empty: on web a line of only a space collapses to
+  // nothing, so the first message pushed everything above it up.
+  message: { fontSize: 15, lineHeight: 20, height: 20, textAlign: 'center' },
+  // Over the layout, not in it, so its coming and going moves nothing.
+  srsToastLayer: { position: 'absolute', top: spacing.md, left: 0, right: 0, alignItems: 'center' },
+  srsToast: {
+    borderWidth: 1.5,
+    borderRadius: 999,
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+  },
+  srsToastText: { fontSize: 15, fontWeight: '600' },
   actions: { flexDirection: 'row', gap: spacing.sm },
   action: { flex: 1, borderWidth: 1, borderRadius: 999, paddingVertical: 11, alignItems: 'center' },
   actionText: { fontSize: 15, fontWeight: '600' },
