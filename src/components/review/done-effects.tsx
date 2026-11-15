@@ -1,62 +1,11 @@
-// The small celebration when an item is done (meaning and reading both right). Neither holds
-// anything up: the shine plays while the result is on screen anyway, and the lift plays during the
-// switch to the next item, alongside it.
+// The small celebration when an item is done (meaning and reading both right): its characters lift
+// away during the switch to the next item, alongside it, so it holds nothing up.
 
-import { useCallback, useEffect, useImperativeHandle, useState, type ReactNode, type Ref } from 'react';
-import { AccessibilityInfo, Animated, Easing, StyleSheet, View, type LayoutChangeEvent } from 'react-native';
+import { useCallback, useEffect, useState, type ReactNode } from 'react';
+import { AccessibilityInfo, Animated, Easing, StyleSheet } from 'react-native';
 
 function reduceMotion() {
   return AccessibilityInfo.isReduceMotionEnabled().catch(() => false);
-}
-
-export interface ShineHandle {
-  play: () => void;
-}
-
-/**
- * A band of light that sweeps once across whatever it's laid over (the answer field). Put it last
- * inside the field's container; it fills it and ignores touches. `radius` matches the field's.
- */
-export function Shine({ ref, radius }: { ref: Ref<ShineHandle>; radius: number }) {
-  const [x] = useState(() => new Animated.Value(0));
-  const [width, setWidth] = useState(0);
-  const band = width * 0.45;
-
-  useImperativeHandle(
-    ref,
-    () => ({
-      play: async () => {
-        if (!width || (await reduceMotion())) return;
-        x.setValue(0);
-        Animated.timing(x, {
-          toValue: 1,
-          duration: 620,
-          easing: Easing.bezier(0.4, 0, 0.2, 1),
-          useNativeDriver: true,
-        }).start(() => x.setValue(0));
-      },
-    }),
-    [width, x],
-  );
-
-  return (
-    <View
-      pointerEvents="none"
-      onLayout={(e: LayoutChangeEvent) => setWidth(e.nativeEvent.layout.width)}
-      style={[StyleSheet.absoluteFill, { borderRadius: radius, overflow: 'hidden' }]}>
-      {width ? (
-        <Animated.View
-          style={[
-            styles.band,
-            {
-              width: band,
-              transform: [{ translateX: x.interpolate({ inputRange: [0, 1], outputRange: [-band * 1.2, width + band * 0.2] }) }],
-            },
-          ]}
-        />
-      ) : null}
-    </View>
-  );
 }
 
 /**
@@ -118,13 +67,6 @@ export function useArrive() {
 }
 
 const styles = StyleSheet.create({
-  band: {
-    position: 'absolute',
-    top: 0,
-    bottom: 0,
-    left: 0,
-    backgroundImage: 'linear-gradient(100deg, rgba(255,255,255,0) 0%, rgba(255,255,255,0.55) 50%, rgba(255,255,255,0) 100%)',
-  },
   // Centred over the characters by its parent (alignItems/justifyContent: center).
   lift: { position: 'absolute' },
 });

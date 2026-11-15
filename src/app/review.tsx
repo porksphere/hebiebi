@@ -17,7 +17,7 @@ import { toKana } from 'wanakana';
 
 import { AnswerField } from '@/components/review/answer-field';
 import { confirmEndSession } from '@/components/review/end-session';
-import { LiftAway, Shine, useArrive, type ShineHandle } from '@/components/review/done-effects';
+import { LiftAway, useArrive } from '@/components/review/done-effects';
 import { HoldToUndo } from '@/components/review/hold-to-undo';
 import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
@@ -26,10 +26,9 @@ import { haptics } from '@/lib/haptics';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
-import { useAnswerStyle } from '@/lib/answer-style';
 import { useKeyboardSpace } from '@/lib/keyboard-space';
 import type { Subject, SubjectType } from '@/lib/wanikani/types';
-import { blend, spacing, TYPE_COLORS, typeTint, useTheme } from '@/theme';
+import { blend, spacing, TYPE_COLORS, useTheme } from '@/theme';
 
 const TYPE_NAMES: Record<SubjectType, string> = {
   radical: 'Radical',
@@ -40,7 +39,6 @@ const TYPE_NAMES: Record<SubjectType, string> = {
 
 export default function ReviewScreen() {
   const theme = useTheme();
-  const answerStyle = useAnswerStyle();
   const insets = useSafeAreaInsets();
   const queryClient = useQueryClient();
   const session = useReviewSession();
@@ -56,7 +54,6 @@ export default function ReviewScreen() {
   );
   const shake = useRef(new Animated.Value(0)).current;
   const keyboardSpace = useKeyboardSpace();
-  const shine = useRef<ShineHandle>(null);
   const arrive = useArrive();
   /** The item just finished, lifting away over the next one (see LiftAway). */
   const [lifting, setLifting] = useState<{ id: number; subject: Subject } | null>(null);
@@ -140,12 +137,8 @@ export default function ReviewScreen() {
     setInput(displayedAnswer(input, question.type));
     setMessage(closeEnough(result));
     if (result.kind === 'correct') {
-      if (finishes) {
-        haptics.itemDone();
-        shine.current?.play();
-      } else {
-        haptics.correct();
-      }
+      if (finishes) haptics.itemDone();
+      else haptics.correct();
       if (question.type === 'reading' && session.autoplayAudio) {
         const audio = pronunciations(item.subject)[0];
         if (audio) playAudio(audio.url);
@@ -304,26 +297,19 @@ export default function ReviewScreen() {
 
   const correction = graded && !graded.correct ? correctAnswers(item.subject, question.type).join(', ') : null;
 
-  // Before Enter, the answer carries the item type's WaniKani colour with WaniKani's light/dark cue
-  // for what to type: faint for a meaning (English), stronger for a reading (kana), so "what is
-  // it?" and "English or kana?" read at a glance. After Enter, green or red. Where that colour
-  // goes depends on the answer style chosen in Settings (lib/answer-style.ts).
+  // The page wash: before Enter, the whole screen takes the item type's WaniKani colour with
+  // WaniKani's light/dark cue for what to type, faint for a meaning (English) and stronger for a
+  // reading (kana), so "what is it?" and "English or kana?" read at a glance. After Enter, green or
+  // red, and the typed answer with it. The whole screen, header included, so solid colours rather
+  // than see-through ones.
   const dark = theme.scheme === 'dark';
   const typeColor = TYPE_COLORS[item.subject.object];
   const gradeColor = graded ? (graded.correct ? theme.correct : theme.incorrect) : null;
-  const inputBg =
-    answerStyle === 'pill'
-      ? (gradeColor ?? typeTint(item.subject.object, isReading ? (dark ? 0.42 : 0.36) : dark ? 0.2 : 0.13))
-      : 'transparent';
-  const inputFg = answerStyle === 'pill' ? (graded ? '#FFFFFF' : theme.text) : (gradeColor ?? theme.text);
+  const inputFg = gradeColor ?? theme.text;
   const placeholderFg = theme.textSecondary;
-  // Page wash: the whole screen, header included, so solid colours rather than see-through ones.
-  const screenBg =
-    answerStyle === 'wash'
-      ? gradeColor
-        ? blend(theme.background, gradeColor, dark ? 0.22 : 0.16)
-        : blend(theme.background, typeColor, isReading ? (dark ? 0.24 : 0.16) : dark ? 0.1 : 0.06)
-      : theme.background;
+  const screenBg = gradeColor
+    ? blend(theme.background, gradeColor, dark ? 0.22 : 0.16)
+    : blend(theme.background, typeColor, isReading ? (dark ? 0.24 : 0.16) : dark ? 0.1 : 0.06);
 
   return (
     // The keyboard's room is always kept (lib/keyboard-space.ts), whether it's up or not, so
@@ -389,7 +375,6 @@ export default function ReviewScreen() {
           <Text
             style={[styles.label, { color: theme.textSecondary, opacity: correction ? 0 : 1 }]}
             accessibilityElementsHidden={!!correction}>
-            {answerStyle === 'ink' ? <Text style={{ color: typeColor }}>● </Text> : null}
             {typeName} <Text style={[styles.labelPart, { color: theme.text }]}>{partName.toLowerCase()}</Text>
           </Text>
 
@@ -403,24 +388,10 @@ export default function ReviewScreen() {
               readOnly={!!graded}
               textColor={inputFg}
               placeholderColor={placeholderFg}
-              backgroundColor={inputBg}
               placeholder={isReading ? 'こたえ' : 'Your answer'}
               returnKeyType={graded ? 'next' : 'done'}
               accessibilityLabel={`${typeName} ${partName.toLowerCase()} answer`}
             />
-            {answerStyle === 'underline' ? (
-              <View
-                style={[
-                  styles.underline,
-                  {
-                    backgroundColor: gradeColor ?? (isReading ? typeColor : typeTint(item.subject.object, 0.45)),
-                    height: graded || isReading ? 3 : 1.5,
-                  },
-                ]}
-              />
-            ) : null}
-            {/* An item done: light sweeps across the green field. (Only the pill has a field.) */}
-            {answerStyle === 'pill' ? <Shine ref={shine} radius={30} /> : null}
           </Animated.View>
 
           <View style={styles.feedback}>
@@ -506,7 +477,6 @@ const styles = StyleSheet.create({
 
   answerArea: { padding: spacing.md, paddingTop: 0, gap: spacing.sm },
   label: { fontSize: 14, textAlign: 'center', marginBottom: spacing.sm },
-  underline: { marginHorizontal: spacing.sm, borderRadius: 2 },
   labelPart: { fontWeight: '600' },
   feedback: { gap: spacing.sm },
   message: { fontSize: 15, textAlign: 'center' },

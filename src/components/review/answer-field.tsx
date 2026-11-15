@@ -28,7 +28,6 @@ export function AnswerField({
   readOnly,
   textColor,
   placeholderColor,
-  backgroundColor,
   placeholder,
   returnKeyType,
   accessibilityLabel,
@@ -42,7 +41,6 @@ export function AnswerField({
   readOnly: boolean;
   textColor: string;
   placeholderColor: string;
-  backgroundColor: string;
   placeholder: string;
   returnKeyType: ReturnKeyTypeOptions;
   accessibilityLabel: string;
@@ -53,7 +51,7 @@ export function AnswerField({
   const settled = masked ? value.slice(0, value.length - pending.length) : '';
 
   return (
-    <View style={[styles.wrap, { backgroundColor }]}>
+    <View>
       <TextInput
         ref={inputRef}
         value={value}
@@ -110,7 +108,6 @@ function Caret({ color }: { color: string }) {
 const FONT_SIZE = 24;
 
 const styles = StyleSheet.create({
-  wrap: { borderRadius: 30 },
   input: { fontSize: FONT_SIZE, paddingVertical: 14, paddingHorizontal: 24, minHeight: 60 },
   overlay: {
     ...StyleSheet.absoluteFill,
