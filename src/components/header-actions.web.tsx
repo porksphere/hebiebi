@@ -35,7 +35,7 @@ export function HeaderActions({ placement, actions }: { placement: 'left' | 'rig
     const shown = latest.current.map(({ onPress: _, ...rest }, i) => ({ ...rest, i }));
     navigation.setOptions({
       [slot]: () => (
-        <View style={[styles.row, placement === 'left' ? styles.left : styles.right]}>
+        <View style={[styles.row, placement === 'left' ? styles.left : styles.right]} {...KEEP_FOCUS}>
           {shown.map((a) => (
             <ActionButton key={a.label} action={a} theme={theme} onPress={() => latest.current[a.i]?.onPress()} />
           ))}
@@ -49,6 +49,14 @@ export function HeaderActions({ placement, actions }: { placement: 'left' | 'rig
 
   return null;
 }
+
+/**
+ * A click on a header button leaves the keyboard where it was: without this the button takes focus
+ * on mouse-down, and wrapping up mid-answer took the keyboard away from the answer field. The
+ * press itself still happens; only the browser's focus move is stopped. (A View passes onMouseDown
+ * through on web; React Native's types don't list it.)
+ */
+const KEEP_FOCUS = { onMouseDown: (e: MouseEvent) => e.preventDefault() } as object;
 
 function ActionButton({
   action,
