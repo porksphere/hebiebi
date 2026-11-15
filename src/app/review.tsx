@@ -25,7 +25,7 @@ import { SessionSummary } from '@/components/review/session-summary';
 import { SubjectCharacters } from '@/components/subject/subject-characters';
 import { playAudio, pronunciations, stopAudio } from '@/lib/audio';
 import { haptics } from '@/lib/haptics';
-import { typingInField, useScreenHotkeys } from '@/lib/hotkeys';
+import { typingInField, useClickAway, useScreenHotkeys } from '@/lib/hotkeys';
 import { correctAnswers, type CheckResult } from '@/lib/review/answer-checker';
 import { sessionStats } from '@/lib/review/session';
 import { useReviewSession } from '@/lib/review/use-review-session';
@@ -193,6 +193,10 @@ export default function ReviewScreen() {
       params: { id: String(item.subject.id), ...(hide ? { hide } : {}) },
     });
   }
+
+  // Desktop: a click anywhere that isn't a button puts the keyboard back in the answer field. Hold
+  // to undo still works: the hold finishes (and undoes) before the click comes, on release.
+  useClickAway(() => inputRef.current?.focus());
 
   // Once the answer's graded (before that, letters are the answer's): F for Item Info, as on
   // WaniKani; C to hear the reading, once it's no secret (this was the reading, or the reading's

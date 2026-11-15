@@ -49,3 +49,31 @@ export function useEscapeGoesBack() {
     [],
   );
 }
+
+/** What a click is meant for in its own right, so it shouldn't also move the keyboard. */
+const CONTROLS =
+  'button, a, input, textarea, select, [role="button"], [role="link"], [role="switch"], [role="checkbox"], [role="tab"]';
+
+/**
+ * A click anywhere on this screen that isn't on a control calls `onClick` (the review screen puts
+ * the keyboard back in its answer field). On `click`, which comes when the button is released, so
+ * a press held for something of its own (hold to undo) has done its thing first. While the screen
+ * is in front only, like useScreenHotkeys.
+ */
+export function useClickAway(onClick: () => void) {
+  const latest = useRef(onClick);
+  useEffect(() => {
+    latest.current = onClick;
+  });
+  useFocusEffect(
+    useCallback(() => {
+      if (Platform.OS !== 'web') return undefined;
+      const listener = (e: MouseEvent) => {
+        if (e.button !== 0 || (e.target instanceof Element && e.target.closest(CONTROLS))) return;
+        latest.current();
+      };
+      window.addEventListener('click', listener);
+      return () => window.removeEventListener('click', listener);
+    }, []),
+  );
+}
