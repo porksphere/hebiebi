@@ -67,6 +67,25 @@ function allowWaniKaniReads(): void {
   );
 }
 
+/** A thin, rounded scrollbar thumb, the kind phones and macOS show, in place of Chromium's grey
+ *  track with arrow buttons on Linux. The shell's, not the app's, so a browser keeps its own. Only
+ *  the `::-webkit-scrollbar` rules: setting the standard `scrollbar-color` / `scrollbar-width` too
+ *  makes Chromium ignore these. The transparent border, clipped out of the background, is what
+ *  makes the thumb narrower than its gutter. Grey at partial opacity reads on light and dark alike.
+ *  (From comical-app.) */
+const SCROLLBAR_CSS = `
+  ::-webkit-scrollbar { width: 10px; height: 10px; background: transparent; }
+  ::-webkit-scrollbar-track, ::-webkit-scrollbar-corner { background: transparent; }
+  ::-webkit-scrollbar-button { display: none; }
+  ::-webkit-scrollbar-thumb {
+    background: rgba(128, 128, 128, 0.35);
+    border: 3px solid transparent;
+    background-clip: padding-box;
+    border-radius: 999px;
+  }
+  ::-webkit-scrollbar-thumb:hover { background-color: rgba(128, 128, 128, 0.6); }
+`;
+
 // --- Window size and place, kept between launches -------------------------------------------------
 
 type Bounds = { x: number; y: number; width: number; height: number };
@@ -121,6 +140,8 @@ async function openWindow(): Promise<void> {
   win.on("closed", () => {
     if (mainWindow === win) mainWindow = null;
   });
+  // Every load, a reload included, starts without it.
+  win.webContents.on("dom-ready", () => void win.webContents.insertCSS(SCROLLBAR_CSS));
 
   // Links out (WaniKani's site, the token page) belong in the browser, not a window with no address
   // bar or back button.
