@@ -8,14 +8,20 @@ import { spacing, useTheme } from '@/theme';
 
 import { SubjectCharacters } from './subject-characters';
 
+interface TileParts {
+  /** Off mid-review while the item's reading is still to be asked: a related reading can give it away. */
+  showReading?: boolean;
+  /** Likewise for the meaning. */
+  showMeaning?: boolean;
+}
+
 /**
- * A related subject (a component, or something it appears in): tap to open its page. Shows its
- * reading as WaniKani's tiles do, unless `showReading` is off (mid-review, when a component's
- * reading could give the answer away).
+ * A related subject (a component, a lookalike, or something it appears in): tap to open its page.
+ * Shows its reading and meaning as WaniKani's tiles do, less whichever part is switched off.
  */
-export function SubjectTile({ subject, showReading = true }: { subject: Subject; showReading?: boolean }) {
+export function SubjectTile({ subject, showReading = true, showMeaning = true }: { subject: Subject } & TileParts) {
   const theme = useTheme();
-  const meaning = subject.data.meanings.find((m) => m.primary)?.meaning ?? '';
+  const meaning = showMeaning ? (subject.data.meanings.find((m) => m.primary)?.meaning ?? null) : null;
   const readings = 'readings' in subject.data ? subject.data.readings : [];
   const reading = showReading ? (readings.find((r) => r.primary)?.reading ?? null) : null;
   return (
@@ -33,18 +39,20 @@ export function SubjectTile({ subject, showReading = true }: { subject: Subject;
           {reading}
         </Text>
       ) : null}
-      <Text style={[styles.meaning, { color: theme.text }]} numberOfLines={1}>
-        {meaning}
-      </Text>
+      {meaning ? (
+        <Text style={[styles.meaning, { color: theme.text }]} numberOfLines={1}>
+          {meaning}
+        </Text>
+      ) : null}
     </Pressable>
   );
 }
 
-export function SubjectTileGrid({ subjects, showReading = true }: { subjects: Subject[]; showReading?: boolean }) {
+export function SubjectTileGrid({ subjects, ...parts }: { subjects: Subject[] } & TileParts) {
   return (
     <Grid columns={4}>
       {subjects.map((s) => (
-        <SubjectTile key={s.id} subject={s} showReading={showReading} />
+        <SubjectTile key={s.id} subject={s} {...parts} />
       ))}
     </Grid>
   );

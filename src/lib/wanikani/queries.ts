@@ -88,10 +88,14 @@ export function useSubject(id: number) {
   });
 }
 
-/** Several subjects at once, in the order given, reusing any already cached. */
-export function useSubjects(ids: number[]) {
+/**
+ * Several subjects at once, in the order given, reusing any already cached. Each once: the API
+ * repeats some ids (a kanji's visually similar ones, for one).
+ */
+export function useSubjects(listed: number[]) {
   const client = useClient();
   const queryClient = useQueryClient();
+  const ids = [...new Set(listed)];
   return useQuery({
     queryKey: ['subjects', ids],
     enabled: ids.length > 0,

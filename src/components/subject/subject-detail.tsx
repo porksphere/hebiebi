@@ -80,18 +80,27 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
         </Section>
       ) : null}
 
-      {/* Hidden mid-review: what a subject appears in (and their meanings) can give it away. */}
-      {usedInIds.length && !hide ? (
-        <Section
-          title={subject.object === 'radical' ? 'Found in kanji' : 'Found in vocabulary'}
-          type={subject.object === 'radical' ? 'kanji' : 'vocabulary'}>
-          {usedIn.data ? <SubjectTileGrid subjects={usedIn.data} /> : <Placeholder />}
+      {/* Lookalikes, then what it appears in, as on WaniKani. Mid-review their tiles leave out the
+          part still to be asked: a word's meaning (one hit, to hit) would give a kanji's away. */}
+      {similarIds.length ? (
+        <Section title="Visually similar kanji" type="kanji">
+          {similar.data ? (
+            <SubjectTileGrid subjects={similar.data} showMeaning={showMeaning} showReading={showReading} />
+          ) : (
+            <Placeholder />
+          )}
         </Section>
       ) : null}
 
-      {similarIds.length && !hide ? (
-        <Section title="Looks like" type="kanji">
-          {similar.data ? <SubjectTileGrid subjects={similar.data} /> : <Placeholder />}
+      {usedInIds.length ? (
+        <Section
+          title={subject.object === 'radical' ? 'Found in kanji' : 'Found in vocabulary'}
+          type={subject.object === 'radical' ? 'kanji' : 'vocabulary'}>
+          {usedIn.data ? (
+            <SubjectTileGrid subjects={usedIn.data} showMeaning={showMeaning} showReading={showReading} />
+          ) : (
+            <Placeholder />
+          )}
         </Section>
       ) : null}
 
