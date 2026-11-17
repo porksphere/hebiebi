@@ -1,10 +1,12 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
-import { useState } from 'react';
+import { useRef, useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { playAudio, pronunciations } from '@/lib/audio';
+import { typingInField, useScreenHotkeys } from '@/lib/hotkeys';
 import { stageName } from '@/lib/srs';
 import {
   useMnemonicImage,
@@ -13,6 +15,7 @@ import {
   useSubjects,
   type SubjectProgress,
 } from '@/lib/wanikani/queries';
+import type { PatternOfUse } from '@/lib/wanikani/patterns-of-use';
 import type { AnySubjectData, Reading, Subject, SubjectType } from '@/lib/wanikani/types';
 import { spacing, useGutters, useTheme } from '@/theme';
 
@@ -21,7 +24,25 @@ import { SubjectCharacters } from './subject-characters';
 import { SubjectTileGrid } from './subject-tile';
 import { TypeDot } from './type-dot';
 
-export type HiddenPart = 'meaning' | 'reading' | undefined;
+/** The question a review just asked, when the page is that review's Item Info. */
+export type ReviewQuestion = 'meaning' | 'reading';
+
+type SectionKey = 'radicals' | 'meaning' | 'reading' | 'context' | 'similar' | 'found-in' | 'kanji';
+
+const ALL_SECTIONS: SectionKey[] = ['radicals', 'meaning', 'reading', 'context', 'similar', 'found-in', 'kanji'];
+
+// What WaniKani's review Item Info opens, by the question just answered (its templates'
+// data-auto-expand-question-types). Everything else starts folded, including the part not asked yet.
+const OPEN_AFTER: Record<ReviewQuestion, SectionKey[]> = {
+  meaning: ['radicals', 'meaning', 'context'],
+  reading: ['reading'],
+};
+
+/** A section that folds: whether it's open, and how to open or close it. */
+interface Fold {
+  open: boolean;
+  onToggle: () => void;
+}
 
 const READING_TYPES: { type: NonNullable<Reading['type']>; label: string }[] = [
   { type: 'onyomi', label: 'On’yomi' },
@@ -30,18 +51,19 @@ const READING_TYPES: { type: NonNullable<Reading['type']>; label: string }[] = [
 ];
 
 /**
- * Everything about one subject. `hide` keeps back a part the user is about to be asked in a review
- * (opening the page mid-review must not give the answer away).
+ * Everything about one subject, in the order WaniKani's item page has it. Opened from a review
+ * (`question`), it works as WaniKani's Item Info does: every section is there, folded, and the ones
+ * for the question just answered start open. The header line keeps back the meaning and reading
+ * while their sections are folded, since the review screen it covers shows neither.
  */
-export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: HiddenPart }) {
+export function SubjectDetail({ subject, question }: { subject: Subject; question?: ReviewQuestion }) {
   const theme = useTheme();
   const gutters = useGutters();
   const data = subject.data as AnySubjectData;
-  const showMeaning = hide !== 'meaning';
-  const showReading = hide !== 'reading';
   const readings = data.readings ?? [];
   const primaryMeaning = data.meanings.find((m) => m.primary)?.meaning;
   const primaryReading = readings.find((r) => r.primary)?.reading;
+  const audios = pronunciations(subject);
   const progress = useSubjectProgress(subject.id);
   const assignment = progress.data?.assignment;
 
@@ -52,14 +74,38 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
   const usedIn = useSubjects(usedInIds);
   const similar = useSubjects(similarIds);
 
+  const [open, setOpen] = useState<ReadonlySet<SectionKey>>(() => new Set(question ? OPEN_AFTER[question] : []));
+  const isOpen = (key: SectionKey) => !question || open.has(key);
+  const fold = (key: SectionKey): Fold | undefined =>
+    question
+      ? {
+          open: open.has(key),
+          onToggle: () =>
+            setOpen((was) => {
+              const now = new Set(was);
+              if (!now.delete(key)) now.add(key);
+              return now;
+            }),
+        }
+      : undefined;
+
+  // Desktop: E opens every section, then folds them all again, as on WaniKani.
+  const allOpen = useRef(false);
+  useScreenHotkeys((e) => {
+    if (!question || e.key.toLowerCase() !== 'e' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typingInField()) return;
+    e.preventDefault();
+    allOpen.current = !allOpen.current;
+    setOpen(new Set(allOpen.current ? ALL_SECTIONS : []));
+  });
+
   return (
     <View style={[styles.root, gutters.padding]}>
       <View style={styles.hero}>
         <SubjectCharacters subject={subject} color={theme.text} size={104} />
-        <Text style={[styles.heroMeaning, { color: theme.text }]}>{showMeaning ? primaryMeaning : '···'}</Text>
+        <Text style={[styles.heroMeaning, { color: theme.text }]}>{isOpen('meaning') ? primaryMeaning : '···'}</Text>
         {primaryReading ? (
           <Text style={[styles.heroReading, { color: theme.textSecondary }]} accessibilityLanguage="ja">
-            {showReading ? primaryReading : '···'}
+            {isOpen('reading') ? primaryReading : '···'}
           </Text>
         ) : null}
         <View style={styles.heroMetaRow}>
@@ -71,52 +117,37 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
         </View>
       </View>
 
-      {showMeaning ? <MeaningSection subject={subject} progress={progress.data} /> : null}
-      {showReading && readings.length ? <ReadingSection subject={subject} progress={progress.data} /> : null}
-
-      {componentIds.length ? (
-        <Section title={subject.object === 'kanji' ? 'Radicals' : 'Kanji'} type={subject.object === 'kanji' ? 'radical' : 'kanji'}>
-          {components.data ? <SubjectTileGrid subjects={components.data} showReading={showReading} /> : <Placeholder />}
+      {subject.object === 'kanji' && componentIds.length ? (
+        <Section title="Radicals" type="radical" fold={fold('radicals')}>
+          {components.data ? <SubjectTileGrid subjects={components.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
-      {/* Lookalikes, then what it appears in, as on WaniKani. Mid-review their tiles leave out the
-          part still to be asked: a word's meaning (one hit, to hit) would give a kanji's away. */}
+      <MeaningSection subject={subject} progress={progress.data} fold={fold('meaning')} />
+      {/* Kana-only words have no reading to learn, only how they sound. */}
+      {readings.length || audios.length ? (
+        <ReadingSection subject={subject} progress={progress.data} fold={fold('reading')} />
+      ) : null}
+      <ContextSection subject={subject} fold={fold('context')} />
+
       {similarIds.length ? (
-        <Section title="Visually similar kanji" type="kanji">
-          {similar.data ? (
-            <SubjectTileGrid subjects={similar.data} showMeaning={showMeaning} showReading={showReading} />
-          ) : (
-            <Placeholder />
-          )}
+        <Section title="Visually similar kanji" type="kanji" fold={fold('similar')}>
+          {similar.data ? <SubjectTileGrid subjects={similar.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
       {usedInIds.length ? (
         <Section
           title={subject.object === 'radical' ? 'Found in kanji' : 'Found in vocabulary'}
-          type={subject.object === 'radical' ? 'kanji' : 'vocabulary'}>
-          {usedIn.data ? (
-            <SubjectTileGrid subjects={usedIn.data} showMeaning={showMeaning} showReading={showReading} />
-          ) : (
-            <Placeholder />
-          )}
+          type={subject.object === 'radical' ? 'kanji' : 'vocabulary'}
+          fold={fold('found-in')}>
+          {usedIn.data ? <SubjectTileGrid subjects={usedIn.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
-      {/* Their English gives the meaning away, so like context sentences they wait until both are known. */}
-      {showMeaning && showReading ? <PatternsOfUse subject={subject} /> : null}
-
-      {showMeaning && showReading && data.context_sentences?.length ? (
-        <Section title="Context">
-          {data.context_sentences.map((s, i) => (
-            <View key={i} style={styles.sentence}>
-              <Text style={[styles.sentenceJa, { color: theme.text }]} accessibilityLanguage="ja">
-                {s.ja}
-              </Text>
-              <Text style={[styles.secondary, { color: theme.textSecondary }]}>{s.en}</Text>
-            </View>
-          ))}
+      {subject.object === 'vocabulary' && componentIds.length ? (
+        <Section title="Kanji" type="kanji" fold={fold('kanji')}>
+          {components.data ? <SubjectTileGrid subjects={components.data} /> : <Placeholder />}
         </Section>
       ) : null}
 
@@ -129,7 +160,7 @@ export function SubjectDetail({ subject, hide }: { subject: Subject; hide?: Hidd
   );
 }
 
-function MeaningSection({ subject, progress }: { subject: Subject; progress: SubjectProgress | undefined }) {
+function MeaningSection({ subject, progress, fold }: { subject: Subject; progress: SubjectProgress | undefined; fold?: Fold }) {
   const theme = useTheme();
   const data = subject.data as AnySubjectData;
   const alternatives = [
@@ -138,7 +169,7 @@ function MeaningSection({ subject, progress }: { subject: Subject; progress: Sub
   ];
   const synonyms = progress?.material?.meaning_synonyms ?? [];
   return (
-    <Section title={subject.object === 'radical' ? 'Name' : 'Meaning'}>
+    <Section title={subject.object === 'radical' ? 'Name' : 'Meaning'} fold={fold}>
       {alternatives.length ? (
         <Text style={[styles.secondary, { color: theme.textSecondary }]}>Also: {alternatives.join(', ')}</Text>
       ) : null}
@@ -163,13 +194,14 @@ function MeaningSection({ subject, progress }: { subject: Subject; progress: Sub
   );
 }
 
-function ReadingSection({ subject, progress }: { subject: Subject; progress: SubjectProgress | undefined }) {
+function ReadingSection({ subject, progress, fold }: { subject: Subject; progress: SubjectProgress | undefined; fold?: Fold }) {
   const theme = useTheme();
   const data = subject.data as AnySubjectData;
   const readings = data.readings ?? [];
   const audios = pronunciations(subject);
+  const kanaOnly = subject.object === 'kana_vocabulary';
   return (
-    <Section title="Reading">
+    <Section title={kanaOnly ? 'Pronunciation' : 'Reading'} fold={fold}>
       {subject.object === 'kanji' ? (
         READING_TYPES.map(({ type, label }) => {
           const ofType = readings.filter((r) => r.type === type);
@@ -186,11 +218,11 @@ function ReadingSection({ subject, progress }: { subject: Subject; progress: Sub
             </View>
           );
         })
-      ) : (
+      ) : readings.length ? (
         <Text style={[styles.readingValue, { color: theme.text }]} accessibilityLanguage="ja">
           {readings.map((r) => r.reading).join('、')}
         </Text>
-      )}
+      ) : null}
       {audios.length ? (
         <View style={styles.audioRow}>
           {audios.map((a) => (
@@ -210,7 +242,7 @@ function ReadingSection({ subject, progress }: { subject: Subject; progress: Sub
       ) : null}
       {data.reading_mnemonic ? <Markup text={data.reading_mnemonic} /> : null}
       {data.reading_hint ? <Hint text={data.reading_hint} /> : null}
-      {progress ? (
+      {progress && !kanaOnly ? (
         <View style={styles.mine}>
           <Mine label="Your note" value={progress.material?.reading_note ?? null} onEdit={() => editMine(subject.id, 'reading_note')} />
         </View>
@@ -318,17 +350,52 @@ function Mine({ label, value, onEdit }: { label: string; value: string | null; o
 }
 
 /**
- * A word's Patterns of Use, from its WaniKani page: the ways it's commonly used (大人に〜, 大人の〜, …),
- * one picked at a time, with that pattern's common word combinations underneath.
+ * A word in use, as WaniKani's Context section has it: its Patterns of Use (大人に〜, 大人の〜, …, from
+ * its WaniKani page), one picked at a time with that pattern's common word combinations underneath,
+ * then the context sentences. Renders nothing when it has neither.
  */
-function PatternsOfUse({ subject }: { subject: Subject }) {
+function ContextSection({ subject, fold }: { subject: Subject; fold?: Fold }) {
   const theme = useTheme();
-  const { data: patterns } = usePatternsOfUse(subject);
+  const { data: patterns = [] } = usePatternsOfUse(subject);
+  const sentences = (subject.data as AnySubjectData).context_sentences ?? [];
+  if (!patterns.length && !sentences.length) return null;
+  // Named parts only when there are both.
+  const labelled = patterns.length > 0 && sentences.length > 0;
+  return (
+    <Section title="Context" fold={fold}>
+      {patterns.length ? (
+        <View style={styles.part}>
+          {labelled ? (
+            <Text style={[styles.partLabel, { color: theme.textSecondary }]}>
+              {patterns.length === 1 ? 'Pattern of use' : 'Patterns of use'}
+            </Text>
+          ) : null}
+          <PatternsOfUse patterns={patterns} />
+        </View>
+      ) : null}
+      {sentences.length ? (
+        <View style={styles.part}>
+          {labelled ? <Text style={[styles.partLabel, { color: theme.textSecondary }]}>Sentences</Text> : null}
+          {sentences.map((s, i) => (
+            <View key={i} style={styles.sentence}>
+              <Text style={[styles.sentenceJa, { color: theme.text }]} accessibilityLanguage="ja">
+                {s.ja}
+              </Text>
+              <Text style={[styles.secondary, { color: theme.textSecondary }]}>{s.en}</Text>
+            </View>
+          ))}
+        </View>
+      ) : null}
+    </Section>
+  );
+}
+
+function PatternsOfUse({ patterns }: { patterns: PatternOfUse[] }) {
+  const theme = useTheme();
   const [picked, setPicked] = useState(0);
-  if (!patterns?.length) return null;
   const current = patterns[Math.min(picked, patterns.length - 1)];
   return (
-    <Section title={patterns.length === 1 ? 'Pattern of use' : 'Patterns of use'}>
+    <>
       <View style={styles.patterns} accessibilityRole="tablist">
         {patterns.map((p, i) => {
           const on = p === current;
@@ -354,7 +421,7 @@ function PatternsOfUse({ subject }: { subject: Subject }) {
           <Text style={[styles.secondary, { color: theme.textSecondary }]}>{c.en}</Text>
         </View>
       ))}
-    </Section>
+    </>
   );
 }
 
@@ -381,16 +448,46 @@ function MnemonicIllustration({ subject }: { subject: Subject }) {
   );
 }
 
-/** `type`: the section lists items of one type, so its title gets that type's dot. */
-function Section({ title, type, children }: { title: string; type?: SubjectType; children: React.ReactNode }) {
+/**
+ * `type`: the section lists items of one type, so its title gets that type's dot. `fold`: it folds
+ * (in a review's Item Info), its title the button that opens and closes it.
+ */
+function Section({ title, type, fold, children }: { title: string; type?: SubjectType; fold?: Fold; children: React.ReactNode }) {
   const theme = useTheme();
+  const heading = (
+    <>
+      {type ? <TypeDot type={type} /> : null}
+      <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
+    </>
+  );
+  if (!fold) {
+    return (
+      <View style={styles.section}>
+        <View style={styles.sectionHead}>{heading}</View>
+        {children}
+      </View>
+    );
+  }
+  const chevron = fold.open ? 'keyboard_arrow_down' : 'keyboard_arrow_right';
   return (
     <View style={styles.section}>
-      <View style={styles.sectionHead}>
-        {type ? <TypeDot type={type} /> : null}
-        <Text style={[styles.sectionTitle, { color: theme.textSecondary }]}>{title}</Text>
-      </View>
-      {children}
+      <Pressable
+        onPress={fold.onToggle}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: fold.open }}
+        // The gap between sections makes up the rest of a full-size target.
+        hitSlop={{ top: 14, bottom: 14 }}
+        style={({ pressed }) => [styles.sectionHead, { opacity: pressed ? 0.6 : 1 }]}>
+        {heading}
+        <View style={styles.flex} />
+        <SymbolView
+          name={{ ios: fold.open ? 'chevron.down' : 'chevron.right', android: chevron, web: chevron }}
+          size={13}
+          weight="semibold"
+          tintColor={theme.textSecondary}
+        />
+      </Pressable>
+      {fold.open ? children : null}
     </View>
   );
 }
@@ -419,6 +516,7 @@ const styles = StyleSheet.create({
   heroMeta: { fontSize: 13 },
   section: { gap: spacing.sm },
   sectionHead: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  flex: { flex: 1 },
   sectionTitle: { fontSize: 13, fontWeight: '600', textTransform: 'uppercase', letterSpacing: 0.8 },
   body: { fontSize: 16, lineHeight: 24 },
   secondary: { fontSize: 15 },
@@ -443,6 +541,8 @@ const styles = StyleSheet.create({
   mineText: { flex: 1, gap: 2 },
   mineLabel: { fontSize: 13, fontWeight: '600' },
   mineAction: { fontSize: 15, fontWeight: '600' },
+  part: { gap: spacing.sm },
+  partLabel: { fontSize: 13, fontWeight: '600' },
   patterns: { flexDirection: 'row', flexWrap: 'wrap', gap: spacing.sm },
   pattern: { borderRadius: 999, paddingHorizontal: 12, paddingVertical: 6 },
   patternText: { fontSize: 15 },

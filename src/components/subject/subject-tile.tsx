@@ -8,22 +8,15 @@ import { spacing, useTheme } from '@/theme';
 
 import { SubjectCharacters } from './subject-characters';
 
-interface TileParts {
-  /** Off mid-review while the item's reading is still to be asked: a related reading can give it away. */
-  showReading?: boolean;
-  /** Likewise for the meaning. */
-  showMeaning?: boolean;
-}
-
 /**
  * A related subject (a component, a lookalike, or something it appears in): tap to open its page.
- * Shows its reading and meaning as WaniKani's tiles do, less whichever part is switched off.
+ * Shows its reading and meaning, as WaniKani's tiles do.
  */
-export function SubjectTile({ subject, showReading = true, showMeaning = true }: { subject: Subject } & TileParts) {
+export function SubjectTile({ subject }: { subject: Subject }) {
   const theme = useTheme();
-  const meaning = showMeaning ? (subject.data.meanings.find((m) => m.primary)?.meaning ?? null) : null;
+  const meaning = subject.data.meanings.find((m) => m.primary)?.meaning ?? '';
   const readings = 'readings' in subject.data ? subject.data.readings : [];
-  const reading = showReading ? (readings.find((r) => r.primary)?.reading ?? null) : null;
+  const reading = readings.find((r) => r.primary)?.reading ?? null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -39,20 +32,18 @@ export function SubjectTile({ subject, showReading = true, showMeaning = true }:
           {reading}
         </Text>
       ) : null}
-      {meaning ? (
-        <Text style={[styles.meaning, { color: theme.text }]} numberOfLines={1}>
-          {meaning}
-        </Text>
-      ) : null}
+      <Text style={[styles.meaning, { color: theme.text }]} numberOfLines={1}>
+        {meaning}
+      </Text>
     </Pressable>
   );
 }
 
-export function SubjectTileGrid({ subjects, ...parts }: { subjects: Subject[] } & TileParts) {
+export function SubjectTileGrid({ subjects }: { subjects: Subject[] }) {
   return (
     <Grid columns={4}>
       {subjects.map((s) => (
-        <SubjectTile key={s.id} subject={s} {...parts} />
+        <SubjectTile key={s.id} subject={s} />
       ))}
     </Grid>
   );

@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HeaderActions } from '@/components/header-actions';
-import { SubjectDetail, type HiddenPart } from '@/components/subject/subject-detail';
+import { SubjectDetail, type ReviewQuestion } from '@/components/subject/subject-detail';
 import { typingInField, useScreenHotkeys } from '@/lib/hotkeys';
 import { useSubject } from '@/lib/wanikani/queries';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -18,9 +18,11 @@ const TYPE_NAMES: Record<SubjectType, string> = {
 export default function SubjectScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
-  const { id, hide } = useLocalSearchParams<{ id: string; hide?: string }>();
-  const subject = useSubject(Number(id));
-  const hidden: HiddenPart = hide === 'meaning' || hide === 'reading' ? hide : undefined;
+  const params = useLocalSearchParams<{ id: string; question?: string }>();
+  const subject = useSubject(Number(params.id));
+  // Set when a review opens it as Item Info: the question just answered.
+  const question: ReviewQuestion | undefined =
+    params.question === 'meaning' || params.question === 'reading' ? params.question : undefined;
   /** Closes the whole sheet, however deep into related subjects it has gone. */
   const close = () => navigation.getParent()?.goBack();
 
@@ -38,7 +40,7 @@ export default function SubjectScreen() {
       <HeaderActions placement="right" actions={[{ label: 'Done', done: true, onPress: close }]} />
       {subject.data ? (
         <ScrollView style={{ backgroundColor: theme.background }} contentInsetAdjustmentBehavior="automatic">
-          <SubjectDetail subject={subject.data} hide={hidden} />
+          <SubjectDetail subject={subject.data} question={question} />
         </ScrollView>
       ) : (
         <View style={[styles.center, { backgroundColor: theme.background }]}>

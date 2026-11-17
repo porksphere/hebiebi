@@ -183,19 +183,13 @@ export default function ReviewScreen() {
     inputRef.current?.focus();
   }
 
-  /** The item's page, as a sheet. Keeps back whichever part hasn't been asked yet. */
+  /**
+   * The item's page, as a sheet, laid out as WaniKani's Item Info: folded, with the sections for
+   * this question open (subject-detail.tsx).
+   */
   function openInfo() {
     if (!item || !question) return;
-    const hide =
-      question.type === 'meaning' && !item.readingDone
-        ? 'reading'
-        : question.type === 'reading' && !item.meaningDone
-          ? 'meaning'
-          : undefined;
-    router.push({
-      pathname: '/subject/[id]',
-      params: { id: String(item.subject.id), ...(hide ? { hide } : {}) },
-    });
+    router.push({ pathname: '/subject/[id]', params: { id: String(item.subject.id), question: question.type } });
   }
 
   // Desktop: a click anywhere that isn't a button puts the keyboard back in the answer field. Hold

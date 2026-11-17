@@ -30,8 +30,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   - Minimise a session to look around the app. It waits on the Today screen and, on iOS 26, in a
     bar above the tabs; end it from either.
   - Review order (shuffled or lower levels first) is read fresh from your account for each session.
-  - Item info after answering, with mnemonics, hints, readings, audio and context sentences. Parts
-    not yet asked stay hidden.
+  - Item info after answering, as WaniKani's: every section is there but folded, and the ones for
+    the question just answered start open (Meaning, Radicals and Context after a meaning; Reading
+    after a reading). Tap a section's title to open it; on desktop, E opens or folds them all.
   - Finishing an item shows where its SRS stage goes, ↑ in green or ↓ in red, as WaniKani does (its
     "SRS stage change" preference turns it off).
   - A summary at the end showing each item's new SRS stage.
@@ -42,7 +43,7 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   list; what you haven't unlocked is blank or faint.
 - **Item pages** (tap any item, or Item Info in a review): everything WaniKani's item page has.
   Meanings and word type, mnemonics, hints and illustrations, all readings with audio, what it's made
-  of and found in (with readings), look-alike kanji, context sentences, and for vocabulary the
+  of and found in (with readings), visually similar kanji, context sentences, and for vocabulary the
   Patterns of Use with their common word combinations (not in the API; read from the public page and
   kept on the phone). Your synonyms and notes, which you can add and change. Your progress: stage,
   next review, the dates it unlocked, started, passed and burned, and right/wrong counts and streaks
