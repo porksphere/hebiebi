@@ -2,7 +2,7 @@ import { Stack, useLocalSearchParams, useNavigation } from 'expo-router';
 import { ActivityIndicator, ScrollView, StyleSheet, Text, View } from 'react-native';
 
 import { HeaderActions } from '@/components/header-actions';
-import { SubjectDetail, type ReviewQuestion } from '@/components/subject/subject-detail';
+import { SubjectDetail, type ReviewInfo } from '@/components/subject/subject-detail';
 import { typingInField, useScreenHotkeys } from '@/lib/hotkeys';
 import { useSubject } from '@/lib/wanikani/queries';
 import type { SubjectType } from '@/lib/wanikani/types';
@@ -18,11 +18,12 @@ const TYPE_NAMES: Record<SubjectType, string> = {
 export default function SubjectScreen() {
   const theme = useTheme();
   const navigation = useNavigation();
-  const params = useLocalSearchParams<{ id: string; question?: string }>();
+  const params = useLocalSearchParams<{ id: string; pending?: string }>();
   const subject = useSubject(Number(params.id));
-  // Set when a review opens it as Item Info: the question just answered.
-  const question: ReviewQuestion | undefined =
-    params.question === 'meaning' || params.question === 'reading' ? params.question : undefined;
+  // Set when a review opens it as Item Info: the part still to be asked, or `none`.
+  const { pending } = params;
+  const review: ReviewInfo | undefined =
+    pending === 'meaning' || pending === 'reading' ? { pending } : pending === 'none' ? { pending: null } : undefined;
   /** Closes the whole sheet, however deep into related subjects it has gone. */
   const close = () => navigation.getParent()?.goBack();
 
@@ -40,7 +41,7 @@ export default function SubjectScreen() {
       <HeaderActions placement="right" actions={[{ label: 'Done', done: true, onPress: close }]} />
       {subject.data ? (
         <ScrollView style={{ backgroundColor: theme.background }} contentInsetAdjustmentBehavior="automatic">
-          <SubjectDetail subject={subject.data} question={question} />
+          <SubjectDetail subject={subject.data} review={review} />
         </ScrollView>
       ) : (
         <View style={[styles.center, { backgroundColor: theme.background }]}>

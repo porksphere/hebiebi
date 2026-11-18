@@ -2,7 +2,7 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import * as WebBrowser from 'expo-web-browser';
-import { useRef, useState } from 'react';
+import { useState } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { playAudio, pronunciations } from '@/lib/audio';
@@ -24,18 +24,26 @@ import { SubjectCharacters } from './subject-characters';
 import { SubjectTileGrid } from './subject-tile';
 import { TypeDot } from './type-dot';
 
-/** The question a review just asked, when the page is that review's Item Info. */
-export type ReviewQuestion = 'meaning' | 'reading';
+/** A part of an item that a review asks about. */
+export type ReviewPart = 'meaning' | 'reading';
+
+/** Opened as a review's Item Info: which part of the item, if any, is still to be asked. */
+export interface ReviewInfo {
+  pending: ReviewPart | null;
+}
 
 type SectionKey = 'radicals' | 'meaning' | 'reading' | 'context' | 'similar' | 'found-in' | 'kanji';
 
 const ALL_SECTIONS: SectionKey[] = ['radicals', 'meaning', 'reading', 'context', 'similar', 'found-in', 'kanji'];
 
-// What WaniKani's review Item Info opens, by the question just answered (its templates'
-// data-auto-expand-question-types). Everything else starts folded, including the part not asked yet.
-const OPEN_AFTER: Record<ReviewQuestion, SectionKey[]> = {
-  meaning: ['radicals', 'meaning', 'context'],
-  reading: ['reading'],
+// In a review's Item Info, what would give away the part still to be asked. These sections start
+// folded; everything else starts open.
+const GIVES_AWAY: Record<ReviewPart, SectionKey[]> = {
+  // Its meanings and context sentences, and the English of the words it's in or of a word's kanji.
+  meaning: ['meaning', 'context', 'found-in', 'kanji'],
+  // Its readings, and the readings of the words it's in, of a word's kanji, and of its lookalikes,
+  // which often share a sound (清, 晴 and 精 are all せい).
+  reading: ['reading', 'found-in', 'kanji', 'similar'],
 };
 
 /** A section that folds: whether it's open, and how to open or close it. */
@@ -52,11 +60,11 @@ const READING_TYPES: { type: NonNullable<Reading['type']>; label: string }[] = [
 
 /**
  * Everything about one subject, in the order WaniKani's item page has it. Opened from a review
- * (`question`), it works as WaniKani's Item Info does: every section is there, folded, and the ones
- * for the question just answered start open. The header line keeps back the meaning and reading
- * while their sections are folded, since the review screen it covers shows neither.
+ * (`review`), its sections fold, as in WaniKani's Item Info: all open, except what would give away a
+ * part still to be asked. The header line keeps back the meaning and reading while their sections
+ * are folded.
  */
-export function SubjectDetail({ subject, question }: { subject: Subject; question?: ReviewQuestion }) {
+export function SubjectDetail({ subject, review }: { subject: Subject; review?: ReviewInfo }) {
   const theme = useTheme();
   const gutters = useGutters();
   const data = subject.data as AnySubjectData;
@@ -74,10 +82,13 @@ export function SubjectDetail({ subject, question }: { subject: Subject; questio
   const usedIn = useSubjects(usedInIds);
   const similar = useSubjects(similarIds);
 
-  const [open, setOpen] = useState<ReadonlySet<SectionKey>>(() => new Set(question ? OPEN_AFTER[question] : []));
-  const isOpen = (key: SectionKey) => !question || open.has(key);
+  const [open, setOpen] = useState<ReadonlySet<SectionKey>>(() => {
+    const folded = review?.pending ? GIVES_AWAY[review.pending] : [];
+    return new Set(ALL_SECTIONS.filter((key) => !folded.includes(key)));
+  });
+  const isOpen = (key: SectionKey) => !review || open.has(key);
   const fold = (key: SectionKey): Fold | undefined =>
-    question
+    review
       ? {
           open: open.has(key),
           onToggle: () =>
@@ -89,13 +100,11 @@ export function SubjectDetail({ subject, question }: { subject: Subject; questio
         }
       : undefined;
 
-  // Desktop: E opens every section, then folds them all again, as on WaniKani.
-  const allOpen = useRef(false);
+  // Desktop: E opens every section, or folds them all when they're all open, as on WaniKani.
   useScreenHotkeys((e) => {
-    if (!question || e.key.toLowerCase() !== 'e' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typingInField()) return;
+    if (!review || e.key.toLowerCase() !== 'e' || e.repeat || e.metaKey || e.ctrlKey || e.altKey || typingInField()) return;
     e.preventDefault();
-    allOpen.current = !allOpen.current;
-    setOpen(new Set(allOpen.current ? ALL_SECTIONS : []));
+    setOpen((was) => new Set(was.size === ALL_SECTIONS.length ? [] : ALL_SECTIONS));
   });
 
   return (
@@ -474,7 +483,8 @@ function Section({ title, type, fold, children }: { title: string; type?: Subjec
       <Pressable
         onPress={fold.onToggle}
         accessibilityRole="button"
-        accessibilityState={{ expanded: fold.open }}
+        // Not accessibilityState, which react-native-web leaves out.
+        aria-expanded={fold.open}
         // The gap between sections makes up the rest of a full-size target.
         hitSlop={{ top: 14, bottom: 14 }}
         style={({ pressed }) => [styles.sectionHead, { opacity: pressed ? 0.6 : 1 }]}>

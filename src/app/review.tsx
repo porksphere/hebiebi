@@ -184,12 +184,18 @@ export default function ReviewScreen() {
   }
 
   /**
-   * The item's page, as a sheet, laid out as WaniKani's Item Info: folded, with the sections for
-   * this question open (subject-detail.tsx).
+   * The item's page, as a sheet. What would give away the part still to be asked starts folded
+   * (subject-detail.tsx).
    */
   function openInfo() {
     if (!item || !question) return;
-    router.push({ pathname: '/subject/[id]', params: { id: String(item.subject.id), question: question.type } });
+    const pending =
+      question.type === 'meaning' && !item.readingDone
+        ? 'reading'
+        : question.type === 'reading' && !item.meaningDone
+          ? 'meaning'
+          : 'none';
+    router.push({ pathname: '/subject/[id]', params: { id: String(item.subject.id), pending } });
   }
 
   // Desktop: a click anywhere that isn't a button puts the keyboard back in the answer field. Hold

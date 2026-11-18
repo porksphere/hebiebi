@@ -30,9 +30,9 @@ Expo (SDK 58) + React Native, with native platform UI: the system tab bar and na
   - Minimise a session to look around the app. It waits on the Today screen and, on iOS 26, in a
     bar above the tabs; end it from either.
   - Review order (shuffled or lower levels first) is read fresh from your account for each session.
-  - Item info after answering, as WaniKani's: every section is there but folded, and the ones for
-    the question just answered start open (Meaning, Radicals and Context after a meaning; Reading
-    after a reading). Tap a section's title to open it; on desktop, E opens or folds them all.
+  - Item info after answering, with every section open except those that would give away a part
+    not asked yet (the meaning, or the reading), which start folded. Tap a section's title to open
+    or fold it; on desktop, E opens or folds them all.
   - Finishing an item shows where its SRS stage goes, ↑ in green or ↓ in red, as WaniKani does (its
     "SRS stage change" preference turns it off).
   - A summary at the end showing each item's new SRS stage.
